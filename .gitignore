@@ -14,3 +14,6 @@
 .cxx
 local.properties
 .kotlin
+
+# 폰 시험용 engine_cli 빌드 결과
+/tools/build/
