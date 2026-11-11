@@ -18,11 +18,13 @@ class PosePack(
     val poses: Int,
     val pos: Array<Array<FloatArray>>,
     val rim: Array<Array<FloatArray>>,
+    /** [포즈][점]: 점마다 구슬 크기 배율(1이 기본). 시안에서 구슬 크기를 읽어 만든 포즈만 1이 아니다. */
+    val size: Array<FloatArray>,
 )
 
 /**
  * `assets/orb_poses.bin`을 읽는다. 형식(little endian):
- * Int N, Int K, Int P, 이어서 포즈 p, 키프레임 k 순서로 (위치 3N Float, rim N Float).
+ * Int N, Int K, Int P, 이어서 포즈 p, 키프레임 k 순서로 (위치 3N Float, rim N Float), 선택으로 끝에 포즈별 점 크기 배율 P x N Float.
  * Blender에서 만들고 내보내는 방법은 docs/blender-mcp-setup.md의 포즈 내보내기 절을 본다.
  */
 object PosePackLoader {
@@ -42,6 +44,9 @@ object PosePackLoader {
                 floats.get(rim[pi][ki])
             }
         }
-        return PosePack(n, k, p, pos, rim)
+        // 파일 끝에 점마다 크기 배율(P x N Float)이 더 있으면 읽는다. 없으면 모두 1.
+        val size = Array(p) { FloatArray(n) { 1f } }
+        if (floats.remaining() >= p * n) for (pi in 0 until p) floats.get(size[pi])
+        return PosePack(n, k, p, pos, rim, size)
     }
 }
