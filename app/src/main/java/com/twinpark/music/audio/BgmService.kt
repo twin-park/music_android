@@ -60,9 +60,21 @@ class BgmService : Service() {
         }
     }
 
+    // 개발용: `adb shell am broadcast -a com.twinpark.music.DEBUG_WORDS --es words "아기 울음,속삭임" -p com.twinpark.music`
+    // 귀가 들은 것으로 칠 단어를 넣는다(빈 값이면 비움). 디버그 빌드에서만 등록한다.
+    private val debugWordsReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val w = intent.getStringExtra("words").orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+            SituationDirector.debugWords = w
+            Log.i(TAG, "디버그 단어: $w")
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
-
+        if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+            registerReceiver(debugWordsReceiver, IntentFilter(DEBUG_WORDS_ACTION), RECEIVER_EXPORTED)
+        }
         audio = getSystemService(AUDIO_SERVICE) as AudioManager
         createChannel()
         registerReceiver(noisyReceiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
@@ -188,6 +200,7 @@ class BgmService : Service() {
     override fun onDestroy() {
         scope.cancel()
         runCatching { unregisterReceiver(noisyReceiver) }
+        runCatching { unregisterReceiver(debugWordsReceiver) }
         abandonFocus()
         BgmController.shutdown()
         super.onDestroy()
@@ -199,6 +212,7 @@ class BgmService : Service() {
         private const val NOTIFICATION_ID = 1
         const val ACTION_TOGGLE = "com.twinpark.music.action.TOGGLE"
         const val ACTION_STOP = "com.twinpark.music.action.STOP"
+        private const val DEBUG_WORDS_ACTION = "com.twinpark.music.DEBUG_WORDS"
 
         /** 서비스를 시작한다(이미 돌고 있으면 그대로). 화면이 앞에 있을 때 불러야 한다. */
         fun start(context: Context) {
