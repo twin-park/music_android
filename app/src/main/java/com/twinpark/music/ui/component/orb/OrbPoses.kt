@@ -23,7 +23,7 @@ object OrbPoses {
     val DEPTH_DIM = floatArrayOf(0.80f, 0.25f, 0.75f, 0.82f, 0.12f)
 
     /** 포즈별 가장자리 구슬 확대량. 면 포즈(보라, 하늘/노랑)만 옆으로 선 구간을 메우려고 키운다. */
-    val EDGE_GROW = floatArrayOf(0f, 0.6f, 0f, 0f, 0f)
+    val EDGE_GROW = floatArrayOf(0.55f, 0.6f, 0.45f, 0.55f, 0f)
 
     /** 포즈별 최소 밝기(능선이 아닌 면의 밝기). 밝은 시안일수록 높다. */
     val RIM_FLOOR = floatArrayOf(0.55f, 0.7f, 0.70f, 0.50f, 0.78f)
