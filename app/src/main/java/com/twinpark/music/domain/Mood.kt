@@ -55,7 +55,7 @@ data class Mood(
     companion object {
         // 하늘/구름 값은 prototype/cloud.html에서 시안과 비교해 맞춘 값이다. 두 곳을 같이 수정한다.
 
-        // 날씨 값: 잔잔(Figma 50%)만 시안 값이고, 나머지는 임시다. 시안 20/30/70/90%의 값을 확인해 맞춘다.
+        // 날씨 값은 Figma 시안의 장면별 값이다: 20%(초록)와 70%(주황)는 86/42/6/0, 30%(보라)와 90%(하늘/노랑)는 20/18/4/0, 50%(파랑)는 86/62/8/8.
 
         /** 잔잔함: 오브는 시안의 파랑/보라, 하늘은 해질녘 푸른 톤 */
         val Calm = Mood(
@@ -95,7 +95,7 @@ data class Mood(
             cloudWarm = Color(0xFFC27A68),
             cloudDensity = 1.0f,
             orbPose = 3,
-            weather = Weather(30, 40, 12, 0),
+            weather = Weather(86, 42, 6, 0),
             engineIds = listOf("즐거운대화", "낮드라이브"),
         )
 
@@ -139,7 +139,7 @@ data class Mood(
             cloudWarm = Color(0xFF4F9A78),
             cloudDensity = 0.8f,
             orbPose = 0,
-            weather = Weather(20, 18, 4, 0),
+            weather = Weather(86, 42, 6, 0),
             engineIds = listOf("평온한재즈", "진정", "클래식왈츠"),
         )
 

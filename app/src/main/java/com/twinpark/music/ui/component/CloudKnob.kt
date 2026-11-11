@@ -98,13 +98,19 @@ fun CloudKnob(
     val haptic = LocalHapticFeedback.current
     var fieldSize by remember { mutableStateOf(IntSize.Zero) }
 
-    // 노브와 −/+ 버튼은 카드 크기에 비례한다(Figma 시안의 노브는 왼쪽 영역 폭의 약 20%). 폰에서는 최소 112dp, 큰 창에서는 최대 220dp.
+    // 노브가 움직이는 범위와 버튼 크기는 카드 크기에 비례한다. 노브가 그려지는 지름은 음량 값에 비례한다
+    // (Figma 시안: 값 20%에서 90%로 갈수록 노브 지름이 왼쪽 영역 폭의 12%에서 37%로 커진다).
     val minKnobPx = with(density) { MIN_KNOB.toPx() }
     val maxKnobPx = with(density) { MAX_KNOB.toPx() }
-    val knobPx = if (fieldSize == IntSize.Zero) minKnobPx
+    val travelPx = if (fieldSize == IntSize.Zero) minKnobPx
     else min(fieldSize.width * KNOB_WIDTH_RATIO, fieldSize.height * KNOB_HEIGHT_RATIO).coerceIn(minKnobPx, maxKnobPx)
+    val ratio = (KNOB_RATIO_AT_20 + (volume - 0.2f) * KNOB_RATIO_SLOPE).coerceIn(KNOB_RATIO_AT_20 * 0.8f, KNOB_RATIO_AT_20 + 0.7f * KNOB_RATIO_SLOPE)
+    val drawnRaw = if (fieldSize == IntSize.Zero) minKnobPx
+    else min(fieldSize.width * ratio, fieldSize.height * KNOB_MAX_HEIGHT_RATIO).coerceIn(minKnobPx, maxKnobPx * 1.6f)
+    val knobPx = (drawnRaw / 4f).roundToInt() * 4f               // 4px 단위로 맞춰 렌즈 셰이더를 자주 다시 만들지 않는다
     val knobSize = with(density) { knobPx.toDp() }
-    val unitScale = knobSize / MIN_KNOB                          // 기본(112dp) 대비 배율: 버튼, 글자, 간격이 같이 커진다
+    val unitScale = with(density) { travelPx.toDp() } / MIN_KNOB   // 버튼과 간격의 배율(노브가 움직이는 범위 기준)
+    val textScale = knobSize / MIN_KNOB                          // 퍼센트 글자는 그려진 노브 크기에 맞춘다
     val stepperSize = STEPPER_SIZE * unitScale
     val stepperMargin = STEPPER_MARGIN * unitScale
     // 아래쪽 −/+ 버튼 자리. 노브는 이 자리를 뺀 윗부분에서만 움직여 버튼과 겹치지 않는다.
@@ -122,8 +128,8 @@ fun CloudKnob(
 
     /** 노브 왼쪽 위 모서리의 영역 좌표(px) */
     fun knobTopLeft(): Offset {
-        val halfW = ((fieldSize.width - knobPx) / 2f).coerceAtLeast(0f)
-        val halfH = ((fieldSize.height - reservedPx - knobPx) / 2f).coerceAtLeast(0f)
+        val halfW = ((fieldSize.width - travelPx) / 2f).coerceAtLeast(0f)
+        val halfH = ((fieldSize.height - reservedPx - travelPx) / 2f).coerceAtLeast(0f)
         return Offset(
             fieldSize.width / 2f + pos.x * halfW - knobPx / 2f,
             (fieldSize.height - reservedPx) / 2f + pos.y * halfH - knobPx / 2f,
@@ -131,8 +137,8 @@ fun CloudKnob(
     }
 
     fun moveTo(p: Offset) {
-        val halfW = ((fieldSize.width - knobPx) / 2f).coerceAtLeast(1f)
-        val halfH = ((fieldSize.height - reservedPx - knobPx) / 2f).coerceAtLeast(1f)
+        val halfW = ((fieldSize.width - travelPx) / 2f).coerceAtLeast(1f)
+        val halfH = ((fieldSize.height - reservedPx - travelPx) / 2f).coerceAtLeast(1f)
         var n = Offset((p.x - fieldSize.width / 2f) / halfW, (p.y - (fieldSize.height - reservedPx) / 2f) / halfH)
         val len = n.getDistance()
         if (len > 1f) n /= len // 타원 밖으로는 나가지 않는다
@@ -365,7 +371,7 @@ fun CloudKnob(
             Text(
                 text = "$percent%",
                 color = Color.White,
-                fontSize = (34f * unitScale).sp,
+                fontSize = (34f * textScale).sp,
                 fontWeight = FontWeight.Light,
             )
         }
@@ -418,6 +424,11 @@ private val MIN_KNOB = 112.dp
 private val MAX_KNOB = 220.dp
 private const val KNOB_WIDTH_RATIO = 0.20f
 private const val KNOB_HEIGHT_RATIO = 0.40f
+
+/** 시안의 노브 지름 비율(왼쪽 영역 폭 대비): 값 20%에서 0.12, 90%에서 0.37. 그 사이는 직선으로 잇는다. */
+private const val KNOB_RATIO_AT_20 = 0.12f
+private const val KNOB_RATIO_SLOPE = 0.357f
+private const val KNOB_MAX_HEIGHT_RATIO = 0.42f
 private val STEPPER_SIZE = 64.dp
 private val STEPPER_MARGIN = 16.dp
 
