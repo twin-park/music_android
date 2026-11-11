@@ -110,13 +110,23 @@ fun MusicScreen(modifier: Modifier = Modifier) {
         val landscape = maxWidth > maxHeight
 
         val knob: @Composable (Modifier) -> Unit = { m ->
-            CloudKnob(
-                volume = volume,
-                onVolumeChange = { volume = it },
-                mood = mood,
-                reducedMotion = reduced,
-                modifier = m,
-            )
+            Box(m) {
+                CloudKnob(
+                    volume = volume,
+                    onVolumeChange = { volume = it },
+                    mood = mood,
+                    reducedMotion = reduced,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                // 시안의 좌상단 브랜드 표기 (시안 글자는 HTUNDAI로 적혀 있으나 오타로 보고 HYUNDAI로 쓴다)
+                Text(
+                    "HYUNDAI",
+                    color = Color.White,
+                    fontSize = ui(16f),
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.TopStart).padding((14 * LocalUiScale.current).dp),
+                )
+            }
         }
         val orb: @Composable (Modifier) -> Unit = { m ->
             OrbPanel(
@@ -181,7 +191,9 @@ private fun OrbPanel(
     // 가로 화면(폰은 높이 360dp 안팎)처럼 낮으면 컴팩트: 오브가 늘 보이도록 날씨 표를 줄이고 버튼을 낮춘다.
     BoxWithConstraints(modifier) {
         val compact = maxHeight < COMPACT_HEIGHT
-        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp)) {
+        // 시안은 오른쪽 패널이 위에서 한참 내려와 시작한다(큰 화면에서만, 폰은 공간이 없어 그대로)
+        val topGap = if (!compact && maxHeight >= 700.dp) maxHeight * 0.08f else 0.dp
+        Column(Modifier.fillMaxSize().padding(top = topGap), verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp)) {
             // 제목: 위 가로선 + "AI가 연주중"
             Column {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White))
