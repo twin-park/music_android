@@ -143,6 +143,7 @@ fun BeadOrb(
             buffers.posB[na] = pack.pos[p][k1]
             buffers.rimA[na] = pack.rim[p][k0]
             buffers.rimB[na] = pack.rim[p][k1]
+            buffers.sizeP[na] = pack.size[p]
             na++
         }
         val actW = buffers.actW
@@ -150,8 +151,13 @@ fun BeadOrb(
         val posB = buffers.posB
         val rimA = buffers.rimA
         val rimB = buffers.rimB
+        val sizeP = buffers.sizeP
+        val sizeMul = buffers.sizeMul
 
         for (i in 0 until n) {
+            var sm = 0f
+            for (m in 0 until na) sm += actW[m] * sizeP[m]!![i]
+            sizeMul[i] = sm
             var x = 0f
             var y = 0f
             var z = 0f
@@ -234,7 +240,7 @@ fun BeadOrb(
             val ch = c / CHUNK
             val l = c - ch * CHUNK
             val verts = vertChunks[ch]
-            val half = halfTable[id]
+            val half = halfTable[id] * sizeMul[i]
             val x = sx[i]
             val y = sy[i]
             val v = l * 8
@@ -303,7 +309,10 @@ private val RIM_BIN = IntArray(RIM_TABLE) { i ->
 }
 
 private const val CHUNK = 15000
-private const val SPRITE_SIZE = 12
+private const val SPRITE_SIZE = 16
+
+/** 구슬 음영의 가장 어두운 곳 밝기(0..1). 낮출수록 입체감이 커지고 전체가 어두워진다. */
+private const val BEAD_SHADE_BASE = 0.84f
 
 private class OrbBuffers(n: Int) {
     val screenX = FloatArray(n)
@@ -323,6 +332,8 @@ private class OrbBuffers(n: Int) {
     val posB = arrayOfNulls<FloatArray>(OrbPoses.COUNT)
     val rimA = arrayOfNulls<FloatArray>(OrbPoses.COUNT)
     val rimB = arrayOfNulls<FloatArray>(OrbPoses.COUNT)
+    val sizeP = arrayOfNulls<FloatArray>(OrbPoses.COUNT)
+    val sizeMul = FloatArray(n)
 
     /** 구슬 하나(정점 4개)의 스프라이트 좌표. 모든 구슬이 같아서 한 번만 채운다. */
     val texCoords = FloatArray(CHUNK * 8).also {
@@ -358,7 +369,16 @@ private fun beadSprite(): Bitmap {
             val d = kotlin.math.hypot(x + 0.5f - c, y + 0.5f - c) / c // 0 중심, 1 가장자리
             val t = ((1f - d) / 0.45f).coerceIn(0f, 1f)
             val a = t * t * (3f - 2f * t)
-            bmp.setPixel(x, y, android.graphics.Color.argb((a * 255f).toInt(), 255, 255, 255))
+            // 구체 음영: 왼쪽 위에서 빛이 오고(diffuse), 작은 하이라이트(spec)가 얹힌다. 색은 정점 색이 곱해진다.
+            val nx = (x + 0.5f - c) / c
+            val ny = (y + 0.5f - c) / c
+            val nz = kotlin.math.sqrt((1f - nx * nx - ny * ny).coerceAtLeast(0f))
+            val diff = (-0.42f * nx - 0.52f * ny + 0.74f * nz).coerceAtLeast(0f)
+            val hx = -0.21f * 1f; val hy = -0.26f; val hz = 0.87f              // 반사 벡터(빛+보는 방향 절반)
+            val spec = Math.pow((nx * hx + ny * hy + nz * hz).coerceAtLeast(0f).toDouble(), 28.0).toFloat()
+            val g = (BEAD_SHADE_BASE + (1f - BEAD_SHADE_BASE) * diff + 0.30f * spec).coerceIn(0f, 1f)
+            val gi = (g * 255f).toInt()
+            bmp.setPixel(x, y, android.graphics.Color.argb((a * 255f).toInt(), gi, gi, gi))
         }
     }
     return bmp
