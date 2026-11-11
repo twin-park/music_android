@@ -75,7 +75,7 @@ data class Mood(
             cloudDensity = 0.9f,
             orbPose = 2,
             weather = Weather(86, 62, 8, 8),
-            engineIds = listOf("비오는날", "위로"),
+            engineIds = listOf("비오는날", "위로", "클래식피아노"),
         )
 
         /** 활기: 오브는 시안의 주황/분홍, 하늘은 석양 (Figma 70% 시안) */
@@ -117,7 +117,7 @@ data class Mood(
             cloudDensity = 0.5f,
             orbPose = 1,
             weather = Weather(20, 18, 4, 0),
-            engineIds = listOf("아이재우기", "밤드라이브"),
+            engineIds = listOf("아이재우기", "밤드라이브", "현악앙상블"),
         )
 
         // 아래 두 분위기의 이름은 임시다. 시안 20%, 90%가 어떤 음악 종류인지 확정되면 바꾼다.
@@ -140,7 +140,7 @@ data class Mood(
             cloudDensity = 0.8f,
             orbPose = 0,
             weather = Weather(20, 18, 4, 0),
-            engineIds = listOf("평온한재즈", "진정"),
+            engineIds = listOf("평온한재즈", "진정", "클래식왈츠"),
         )
 
         /** 청량: 시안 90% 하늘색과 노랑 (임시 이름) */
@@ -170,6 +170,7 @@ data class Mood(
             EngineMood("비오는날", "비 오는 날"), EngineMood("평온한재즈", "평온한 재즈"), EngineMood("밤드라이브", "밤 드라이브"),
             EngineMood("즐거운대화", "즐거운 대화"), EngineMood("바닷가보사노바", "바닷가 보사노바"), EngineMood("아이재우기", "아이 재우기"),
             EngineMood("진정", "진정"), EngineMood("위로", "위로"), EngineMood("낮드라이브", "낮 드라이브"),
+            EngineMood("클래식피아노", "클래식 피아노"), EngineMood("현악앙상블", "현악 앙상블"), EngineMood("클래식왈츠", "클래식 왈츠"),
         )
 
         /** 엔진 분위기에 맞는 오브 장면. 모르는 ID면 잔잔(파랑). */
