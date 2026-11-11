@@ -2,6 +2,8 @@ package com.twinpark.music.ui.screen
 
 import android.app.Activity
 import android.content.pm.ApplicationInfo
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -39,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -74,6 +77,7 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     // 분위기는 컨트롤러가 쥔다: 상황 판단(귀가 알려 준 단어)이나 사용자 조작이 바꾸고, 오브와 하늘은 그에 맞는 장면을 쓴다
     val engineId by BgmController.moodId.collectAsState()
     val mood = Mood.forEngine(engineId)
+    val skyColors = mood.sky.mapIndexed { i, c -> animateColorAsState(c, tween(1500), label = "bg$i").value }
     var sensed by remember { mutableStateOf(emptySet<String>()) }        // 디버그: 귀가 들은 것으로 치는 단어들
     val situation by SituationDirector.state.collectAsState()
     var reduced by remember { mutableStateOf(false) }
@@ -104,7 +108,9 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF141B3A), Color(0xFF0B0F24))))
+            // 시안은 장면의 색이 화면 전체(오른쪽 패널 뒤까지)에 이어진다: 분위기의 하늘색을 천천히 바꿔 가며 깔고, 오른쪽 글자가 읽히게 살짝 어둡힌다
+            .background(Brush.linearGradient(skyColors, start = Offset(0f, 0f), end = Offset.Infinite))
+            .background(Color(0x66000000))
             .safeDrawingPadding(),
     ) {
         val landscape = maxWidth > maxHeight
