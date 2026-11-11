@@ -281,8 +281,11 @@ private const val RIM_TABLE = 256
 private const val EXTENT = 1.40f
 private const val DEPTH_HALF = 1.45f
 
-/** 구슬 지름(모델 단위). 구 상태의 점 간격 약 0.0242의 65%. */
-private const val BEAD_DIAMETER = 0.0242f * 0.65f
+/**
+ * 구슬 지름(모델 단위). 시안은 지름을 가로질러 구슬이 약 55개이고 구슬 지름이 점 간격의 약 47%라서,
+ * 점이 약 1.15만 개인 구(점 간격 약 0.0355)에서 0.0165이고, 시안 오브는 폭 대비 구슬이 더 커서(점 간격의 약 55%) 0.0195다.
+ */
+private const val BEAD_DIAMETER = 0.0195f
 
 /** 초당 키프레임 이동량. 4개 키프레임이면 한 바퀴에 약 8초. */
 private const val FLOW_RATE = 0.5f
