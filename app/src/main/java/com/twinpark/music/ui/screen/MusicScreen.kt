@@ -75,6 +75,7 @@ import com.twinpark.music.ui.component.PianoRoll
 import com.twinpark.music.ui.component.Precipitation
 import com.twinpark.music.ui.component.SceneArt
 import com.twinpark.music.ui.component.WeatherOverlay
+import com.twinpark.music.ui.component.rememberRainShaderSource
 import com.twinpark.music.ui.component.rememberWeatherClock
 import com.twinpark.music.ui.component.drawPrecipitation
 import com.twinpark.music.ui.component.orb.BeadOrb
@@ -109,6 +110,7 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     val precipitation = when { weatherNow.snowing -> Precipitation.Snow; weatherNow.raining -> Precipitation.Rain; else -> Precipitation.None }
     val rainBase = androidx.compose.ui.graphics.ImageBitmap.imageResource(com.twinpark.music.R.drawable.scene_rain_base)
     val lensBase = if (precipitation == Precipitation.Rain) rainBase else null
+    val rainAgsl = rememberRainShaderSource()
     val weatherClock = rememberWeatherClock(active = !reduced && precipitation != Precipitation.None)
     var volume by rememberSaveable { mutableFloatStateOf(0.7f) }
 
@@ -201,7 +203,7 @@ fun MusicScreen(modifier: Modifier = Modifier) {
                 Box(Modifier.fillMaxSize()) {
                     knob(Modifier.fillMaxSize(), 0.dp, panelW)
                     // 눈: 장면 위, 패널 아래. 패널 뒤에서는 아래 흐림 레이어가 같은 입자를 같은 자리에 다시 그려 같이 흐려진다.
-                    WeatherOverlay(precipitation, clockNs = { weatherClock.value }, enabled = !reduced, lensBase = lensBase)
+                    WeatherOverlay(precipitation, clockNs = { weatherClock.value }, enabled = !reduced, lensBase = lensBase, rainAgsl = rainAgsl)
                     // 오른쪽 패널: 장면을 같은 자리에서 다시 그려 실제로 흐리게 하고(Figma의 흐린 반투명 유리), 그 위에 옅게 어둡힌다.
                     Box(Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(panelW)) {
                         Canvas(
@@ -214,7 +216,7 @@ fun MusicScreen(modifier: Modifier = Modifier) {
                         ) {
                             translate(left = -(sceneW - size.width)) {
                                 drawLayer(sceneLayer)
-                                if (!reduced) drawPrecipitation(precipitation, weatherClock.value / 1_000_000_000.0, sceneW, size.height, density.density, lensBase)
+                                if (!reduced) drawPrecipitation(precipitation, weatherClock.value / 1_000_000_000.0, sceneW, size.height, density.density, lensBase, rainAgsl)
                             }
                         }
                         Box(Modifier.fillMaxSize().background(Color(0x55101820)).border(BorderStroke(1.dp, Color(0x22FFFFFF))))
@@ -226,7 +228,7 @@ fun MusicScreen(modifier: Modifier = Modifier) {
                     orb(Modifier.weight(1.35f).fillMaxWidth())
                     Box(Modifier.weight(0.65f).fillMaxWidth()) {
                         knob(Modifier.fillMaxSize(), 28.dp, 0.dp)
-                        WeatherOverlay(precipitation, clockNs = { weatherClock.value }, enabled = !reduced, lensBase = lensBase)
+                        WeatherOverlay(precipitation, clockNs = { weatherClock.value }, enabled = !reduced, lensBase = lensBase, rainAgsl = rainAgsl)
                     }
                 }
             }
