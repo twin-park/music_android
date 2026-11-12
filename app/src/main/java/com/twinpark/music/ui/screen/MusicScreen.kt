@@ -159,6 +159,7 @@ fun MusicScreen(modifier: Modifier = Modifier) {
             .safeDrawingPadding(),
     ) {
         val landscape = maxWidth > maxHeight
+        val screenDensity = androidx.compose.ui.platform.LocalDensity.current.density
 
         val knob: @Composable (Modifier, androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp) -> Unit = { m, corner, endInset ->
             Box(m) {
@@ -177,6 +178,11 @@ fun MusicScreen(modifier: Modifier = Modifier) {
                     endInset = endInset,
                     scene = SceneArt.forKey(mood.sceneKey),
                     sceneLayer = sceneLayer,
+                    // 비와 눈은 노브 아래에 그리고, 노브 렌즈가 장면과 함께 굴절해 비춘다
+                    weatherContent = { WeatherOverlay(precipitation, clockNs = { weatherClock.value }, enabled = !reduced, lensBase = lensBase, rainAgsl = rainAgsl) },
+                    lensExtra = { w, h ->
+                        if (!reduced) drawPrecipitation(precipitation, weatherClock.value / 1_000_000_000.0, w, h, screenDensity, lensBase, rainAgsl)
+                    },
                     modifier = Modifier.fillMaxSize(),
                 )
                 // 시안의 좌상단 브랜드 표기 (시안 글자는 HTUNDAI로 적혀 있으나 오타로 보고 HYUNDAI로 쓴다)
@@ -223,7 +229,6 @@ fun MusicScreen(modifier: Modifier = Modifier) {
                 Box(Modifier.fillMaxSize()) {
                     knob(Modifier.fillMaxSize(), 0.dp, panelW)
                     // 눈: 장면 위, 패널 아래. 패널 뒤에서는 아래 흐림 레이어가 같은 입자를 같은 자리에 다시 그려 같이 흐려진다.
-                    WeatherOverlay(precipitation, clockNs = { weatherClock.value }, enabled = !reduced, lensBase = lensBase, rainAgsl = rainAgsl)
                     // 오른쪽 패널: 장면을 같은 자리에서 다시 그려 실제로 흐리게 하고(Figma의 흐린 반투명 유리), 그 위에 옅게 어둡힌다.
                     Box(Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(panelW)) {
                         Canvas(
@@ -249,7 +254,6 @@ fun MusicScreen(modifier: Modifier = Modifier) {
                     orb(Modifier.weight(1.35f).fillMaxWidth())
                     Box(Modifier.weight(0.65f).fillMaxWidth()) {
                         knob(Modifier.fillMaxSize(), 28.dp, 0.dp)
-                        WeatherOverlay(precipitation, clockNs = { weatherClock.value }, enabled = !reduced, lensBase = lensBase, rainAgsl = rainAgsl)
                     }
                 }
             }
