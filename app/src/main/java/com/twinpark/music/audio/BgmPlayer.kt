@@ -109,6 +109,7 @@ class BgmPlayer(context: Context) {
     fun beat(): Float = BgmNative.nativeBeat()
     fun notes(): LongArray = BgmNative.nativeNotes()
     fun played(): Long = BgmNative.nativePlayed()
+    fun setLead(sec: Float) = BgmNative.nativeLead(sec)
 
     fun status(): BgmStatus? {
         val f = BgmNative.nativeStatus().split('|')

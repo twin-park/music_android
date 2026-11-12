@@ -46,7 +46,8 @@ struct Player {
     ma_device dev{};
     bool dev_ok = false;
     std::thread render, composer;
-    static constexpr double kFill = .2;   // 초: 소리 줄이 앞서 만들어 두는 양
+    static constexpr double kFill = .2;   // 초: 소리 줄이 앞서 만들어 두는 기본 양
+    std::atomic<double> fill{kFill};      // 지금 쓰는 값. 피아노 화면은 음이 위에서 길게 내려오도록 늘린다(대신 음량 반응이 그만큼 늦다). 고리 버퍼(1초) 안이어야 한다.
 };
 
 std::mutex g_mtx;
@@ -144,7 +145,7 @@ JNIEXPORT jstring JNICALL Java_com_twinpark_music_audio_BgmNative_nativeStart(JN
         std::vector<float> L(1024), R(1024);
         while (p->running) {
             Ring &ring = p->ring;
-            if (ring.cap - ring.fill() >= 1024 && ring.fill() < (size_t)(Player::kFill * SR)) {
+            if (ring.cap - ring.fill() >= 1024 && ring.fill() < (size_t)(p->fill.load() * SR)) {
                 p->E.render(L.data(), R.data(), 1024);
                 const size_t w = ring.w.load();
                 for (int i = 0; i < 1024; i++) { const size_t j = (w + i) % ring.cap; ring.b[j * 2] = L[i]; ring.b[j * 2 + 1] = R[i]; }
@@ -258,6 +259,15 @@ JNIEXPORT jlongArray JNICALL Java_com_twinpark_music_audio_BgmNative_nativeNotes
 JNIEXPORT jlong JNICALL Java_com_twinpark_music_audio_BgmNative_nativePlayed(JNIEnv *, jobject) {
     Player *p = g_player.get();
     return p ? (jlong)p->ring.r.load() : 0L;
+}
+
+// 소리 줄이 앞서 만들어 두는 양(초, 0.1~0.8). 피아노 화면은 음을 일찍 알려야 하므로 늘리고, 끄면 원래대로 되돌린다.
+JNIEXPORT void JNICALL Java_com_twinpark_music_audio_BgmNative_nativeLead(JNIEnv *, jobject, jfloat sec) {
+    Player *p = g_player.get();
+    if (!p) return;
+    const double v = std::max(0.1, std::min(0.8, (double)sec));
+    p->fill.store(v);
+    p->E.play_latency = v + .03;
 }
 
 // 상태 글자 한 줄: 분위기 이름|마디 역할|조|빠르기|끊김 횟수|연주중(0/1)

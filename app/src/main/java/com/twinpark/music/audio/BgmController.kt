@@ -109,6 +109,9 @@ object BgmController {
     /** 피아노 화면용: 새로 알려진 음들((프레임 shl 16) or (세기 shl 8) or 음 높이). 연주 중이 아니면 비어 있다. */
     fun drainNotes(): LongArray = if (_state.value == BgmState.Ready && !_paused.value) player?.notes() ?: LongArray(0) else LongArray(0)
 
+    /** 피아노 화면이 보이는 동안 true: 소리 줄이 더 앞서 만들어 음이 일찍 알려진다(음량 반응은 그만큼 늦다). */
+    fun setPianoLead(on: Boolean) { player?.setLead(if (on) 0.7f else 0.2f) }
+
     /** 지금 재생 위치(소리 프레임). */
     fun playedFrame(): Long = if (_state.value == BgmState.Ready) player?.played() ?: 0L else 0L
 
