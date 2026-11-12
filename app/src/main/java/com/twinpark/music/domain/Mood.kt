@@ -99,6 +99,7 @@ data class Mood(
             cloudWarm = Color(0xFFC27A68),
             cloudDensity = 1.0f,
             orbPose = 3,
+            sceneKey = "dusk",
             weather = Weather(86, 42, 6, 0),
             engineIds = listOf("즐거운대화", "낮드라이브"),
         )
