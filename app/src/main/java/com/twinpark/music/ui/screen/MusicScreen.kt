@@ -112,7 +112,9 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     val lensBase = if (precipitation == Precipitation.Rain) rainBase else null
     val rainAgsl = rememberRainShaderSource()
     val weatherClock = rememberWeatherClock(active = !reduced && precipitation != Precipitation.None)
-    var volume by rememberSaveable { mutableFloatStateOf(0.7f) }
+    // 구획(ECHO, VOLUME, PITCH, TEMPO)마다 자기 값(0..1)을 기억한다. 노브가 놓인 구획의 값만 바뀌고 서로 영향이 없다.
+    var quadrantLevels by remember { mutableStateOf(com.twinpark.music.domain.QuadrantControl.initialLevels()) }
+    val volume = com.twinpark.music.domain.QuadrantControl.volumeOf(quadrantLevels)
 
     // 배경음악: 엔진은 포그라운드 서비스가 쥐고 있어서 화면을 닫아도 계속 연주한다. 화면은 상태를 보여 주고 요청만 보낸다.
     val context = LocalContext.current
@@ -130,9 +132,9 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     // 음량 노브 0..1은 소리 크기에 제곱을 취해 귀에 고르게 느껴지게 한다
     LaunchedEffect(volume) { BgmController.setVolume(volume * volume) }
 
-    // 노브가 놓인 4분면(ECHO, NOTES, PITCH, TEMPO)이 정하는 조절량. 노브를 만지기 전에는 0이라 분위기 기본값 그대로다.
-    // 분면을 옮기면 이전 항목은 기본값으로, 새 항목은 목표값으로 천천히 바뀐다(음악이 갑자기 달라지지 않게).
-    var quadrantTarget by remember { mutableStateOf(com.twinpark.music.domain.EngineParams()) }
+    // 구획 값에서 나온 엔진 조절량(음량 제외). 노브를 만지기 전에는 0이라 분위기 기본값 그대로다.
+    // 값이 바뀌면 0.9초에 걸쳐 따라간다(음악이 갑자기 달라지지 않게).
+    val quadrantTarget = com.twinpark.music.domain.QuadrantControl.toParams(quadrantLevels)
     val quadSpec = androidx.compose.animation.core.tween<Float>(durationMillis = 900)
     val qReg by androidx.compose.animation.core.animateFloatAsState(quadrantTarget.reg, quadSpec, label = "qReg")
     val qTempo by androidx.compose.animation.core.animateFloatAsState(quadrantTarget.tempo, quadSpec, label = "qTempo")
@@ -161,10 +163,13 @@ fun MusicScreen(modifier: Modifier = Modifier) {
         val knob: @Composable (Modifier, androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp) -> Unit = { m, corner, endInset ->
             Box(m) {
                 CloudKnob(
-                    volume = volume,
-                    onVolumeChange = { volume = it },
+                    initialPos = com.twinpark.music.domain.QuadrantControl.initialPos().let { androidx.compose.ui.geometry.Offset(it.first, it.second) },
+                    quadrantLevels = quadrantLevels,
                     onPositionChange = { x, y ->
-                        quadrantTarget = com.twinpark.music.domain.QuadrantControl.toParams(com.twinpark.music.domain.QuadrantControl.amounts(x, y))
+                        val q = com.twinpark.music.domain.QuadrantControl.quadrantAt(x, y)
+                        if (q != null) {
+                            quadrantLevels = quadrantLevels.copyOf().also { it[q.ordinal] = com.twinpark.music.domain.QuadrantControl.levelAt(x, y) }
+                        }
                     },
                     mood = mood,
                     reducedMotion = reduced,
