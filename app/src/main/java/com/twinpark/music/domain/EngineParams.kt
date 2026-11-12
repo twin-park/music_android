@@ -11,4 +11,14 @@ data class EngineParams(
     val energy: Float = 0f,
     val novelty: Float = 0f,
     val space: Float = 0f,
-)
+) {
+    /** 두 조절값을 더한다(각 -1..1로 자른다). 상황 판단이 정한 값 위에 사용자가 노브로 정한 값을 얹을 때 쓴다. */
+    operator fun plus(o: EngineParams) = EngineParams(
+        reg = (reg + o.reg).coerceIn(-1f, 1f),
+        tempo = (tempo + o.tempo).coerceIn(-1f, 1f),
+        dens = (dens + o.dens).coerceIn(-1f, 1f),
+        energy = (energy + o.energy).coerceIn(-1f, 1f),
+        novelty = (novelty + o.novelty).coerceIn(-1f, 1f),
+        space = (space + o.space).coerceIn(-1f, 1f),
+    )
+}

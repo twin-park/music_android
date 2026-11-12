@@ -73,12 +73,22 @@ object BgmController {
         if (_state.value == BgmState.Ready) player?.requestMood(engineId)
     }
 
-    private var params = EngineParams()
+    private var autoParams = EngineParams()
+    private var knobParams = EngineParams()
+
+    /** 엔진에 주는 조절값: 상황 판단이 정한 값 위에 노브 4분면 값을 얹는다. */
+    private val params: EngineParams get() = autoParams + knobParams
 
     /** 조절값(-1..1) 여섯 개. 분위기가 바뀌면 상황 판단이 새 분위기의 값으로 다시 준다. */
     fun setParams(p: EngineParams) {
-        params = p
-        if (_state.value == BgmState.Ready) player?.setParams(p)
+        autoParams = p
+        if (_state.value == BgmState.Ready) player?.setParams(params)
+    }
+
+    /** 노브의 4분면이 정한 조절량. 위의 상황 판단 값에 더해진다. */
+    fun setKnobParams(p: EngineParams) {
+        knobParams = p
+        if (_state.value == BgmState.Ready) player?.setParams(params)
     }
 
     fun setVolume(v: Float) {

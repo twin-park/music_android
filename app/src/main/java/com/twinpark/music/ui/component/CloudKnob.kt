@@ -52,6 +52,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import com.twinpark.music.domain.Quadrant
+import com.twinpark.music.domain.QuadrantControl
+import com.twinpark.music.ui.theme.AppFonts
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.text.font.FontWeight
@@ -103,6 +107,10 @@ fun CloudKnob(
     scene: SceneArt? = null,
     /** 장면을 기록할 레이어. 밖에서 주면 다른 곳(오른쪽 패널의 흐림 배경)이 같은 장면을 다시 그릴 수 있다. */
     sceneLayer: androidx.compose.ui.graphics.layer.GraphicsLayer? = null,
+    /** 사용자가 노브를 움직일 때마다 정규화 위치(x 오른쪽, y 아래, 길이 0..1)를 알린다. 4분면 조절에 쓴다. */
+    onPositionChange: (x: Float, y: Float) -> Unit = { _, _ -> },
+    /** 십자 안내선과 4분면 이름을 그린다. */
+    quadrantGuides: Boolean = true,
 ) {
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
@@ -130,6 +138,7 @@ fun CloudKnob(
     var pos by remember { mutableStateOf(withLength(DEFAULT_DIRECTION, volume)) }
     var lastStep by remember { mutableIntStateOf((volume * STEPS).roundToInt()) }
     val latestOnChange by rememberUpdatedState(onVolumeChange)
+    val latestOnPosition by rememberUpdatedState(onPositionChange)
 
     // 버튼이나 음성으로 음량이 바뀌면 방향은 유지하고 거리만 맞춘다.
     LaunchedEffect(volume) {
@@ -160,6 +169,7 @@ fun CloudKnob(
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         }
         latestOnChange(v)
+        latestOnPosition(n.x, n.y)
     }
 
     // 분위기에 따라 하늘과 구름 색이 부드럽게 바뀐다. (sky 개수는 항상 같아야 한다)
@@ -318,6 +328,44 @@ fun CloudKnob(
             }
           }
           drawLayer(cloudLayer)
+        }
+
+        // 4분면 안내: 옅은 십자선과 분면 이름. 노브가 있는 분면의 이름이 밝아진다.
+        if (quadrantGuides && fieldSize != IntSize.Zero) {
+            val gw = QuadrantControl.weights(pos.x, pos.y)
+            val centerX = fieldW / 2f
+            val centerY = (fieldSize.height - reservedPx) / 2f
+            val dash = PathEffect.dashPathEffect(floatArrayOf(10f, 14f))
+            Canvas(Modifier.fillMaxSize()) {
+                val lineColor = Color.White.copy(alpha = 0.30f)
+                drawLine(lineColor, Offset(centerX, centerY * 0.10f), Offset(centerX, centerY * 1.90f), strokeWidth = 1.5f, pathEffect = dash)
+                drawLine(lineColor, Offset(fieldW * 0.04f, centerY), Offset(fieldW * 0.96f, centerY), strokeWidth = 1.5f, pathEffect = dash)
+            }
+            val labelW = 150.dp * unitScale
+            val labelH = 28.dp * unitScale
+            val wPx = with(density) { labelW.toPx() }
+            val hPx = with(density) { labelH.toPx() }
+            Quadrant.values().forEachIndexed { i, q ->
+                val sx = if (i % 2 == 0) -1f else 1f
+                val sy = if (i < 2) -1f else 1f
+                val lx = centerX + sx * fieldW * 0.25f
+                val ly = centerY + sy * centerY * 0.55f
+                Box(
+                    Modifier
+                        .offset { IntOffset((lx - wPx / 2f).roundToInt(), (ly - hPx / 2f).roundToInt()) }
+                        .size(labelW, labelH),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = q.label,
+                        color = Color.White.copy(alpha = 0.30f + 0.70f * gw[i]),
+                        fontSize = (13f * unitScale).sp,
+                        letterSpacing = 2.sp,
+                        fontFamily = AppFonts.Inter,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
         }
 
         // 유리 노브
