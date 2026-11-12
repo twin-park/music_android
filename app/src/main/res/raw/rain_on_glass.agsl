@@ -1,6 +1,9 @@
 // 창문 빗방울 셰이더(직접 작성).
-// 화면을 세로 열로 나눠 열마다 큰 방울 하나가 멈췄다 흐르며 내려가고(속도 sin^2), 그 뒤에 작은 방울 몇 개와 가는 물자국을 남긴다.
-// 큰 방울과 작은 방울 두 겹을 겹친다. 방울 안쪽은 뒤 장면 사진을 180도 돌려 1.5배로 비추는 렌즈(굴절)이고 가장자리는 어둡다.
+// - 큰 방울: 열마다 하나씩, 오래 멈췄다가 갑자기 쭉 흐른다(속도 sin^4). 흐를 때는 길게 늘어나고 멈추면 둥글어진다.
+//   길은 곧은 사인파가 아니라 두 파장을 섞어 불규칙하게 흔들린다. 지나온 길에 젖은 자국이 남는다.
+// - 작은 방울: 큰 방울이 지나간 길에 불규칙한 간격으로 뭉쳐서 남는다.
+// - 이슬: 아주 작은 방울이 칸마다 천천히 맺혔다 사라진다.
+// 방울 안쪽은 뒤 장면 사진을 180도 돌려 1.5배로 비추는 렌즈(굴절)이고, 아래쪽 가장자리에 빛이 모인다.
 // 방울 위치는 열 번호의 해시로 정해져 상태를 저장하지 않는다. 반환 색은 premultiplied alpha다.
 uniform shader image;       // 장면 배경 사진(픽셀 좌표로 읽는다)
 uniform float2 resolution;  // 장면 크기(px)
@@ -10,22 +13,23 @@ uniform float4 imgRect;     // 장면 안에서 사진이 그려진 영역(x, y,
 uniform float2 imgPx;       // 사진 원본 크기(px)
 
 float h11(float n) { return fract(sin(n * 127.1) * 43758.5453); }
+float h12(float2 p) { return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453); }
 
 half4 scene(float2 q) {
     float2 uv = (q - imgRect.xy) / imgRect.zw * imgPx;
     return image.eval(clamp(uv, float2(0.5), imgPx - 0.5));
 }
 
-// 눈물방울: 아래는 둥글고 위는 뾰족하다. 양수면 안쪽(px).
-float tearMask(float2 d, float r) {
+// 눈물방울: 아래는 둥글고 위는 뾰족하다. tail은 꼬리 길이(r의 배수). 양수면 안쪽(px).
+float tearMask(float2 d, float r, float tail) {
     float y = d.y;
-    if (y > r || y < -2.2 * r) return -10.0;      // 범위 밖: 중심선(x=0)이 반쯤 채워져 세로 줄이 생기는 것을 막는다
+    if (y > r || y < -tail * r) return -10.0;     // 범위 밖: 중심선(x=0)이 반쯤 채워져 세로 줄이 생기는 것을 막는다
     float w;
     if (y >= 0.0) {
         w = r * sqrt(max(0.0, 1.0 - (y * y) / (r * r)));
     } else {
-        float t = clamp(1.0 + y / (2.2 * r), 0.0, 1.0);
-        w = r * pow(t, 1.6);
+        float t = clamp(1.0 + y / (tail * r), 0.0, 1.0);
+        w = r * pow(t, 1.7);
     }
     return w - abs(d.x);
 }
@@ -38,12 +42,22 @@ void drop(inout half4 acc, float2 p, float2 c, float r, float m, float strength)
     float2 d = p - c;
     half4 col = scene(c - d * 1.5);
     float rim = clamp(length(d / float2(r, r * 1.15)), 0.0, 1.0);
-    col.rgb *= half(1.0 - 0.45 * smoothstep(0.55, 1.0, rim));
-    col.rgb += half(0.07 * (1.0 - rim));
-    float hl = smoothstep(r * 0.20, r * 0.07, length(p - (c + float2(-0.38 * r, -0.05 * r))));
-    col.rgb += half(0.45 * hl);
+    col.rgb *= half(1.0 - 0.36 * smoothstep(0.55, 1.0, rim));
+    col.rgb += half(0.06 * (1.0 - rim));
+    // 아래쪽 안쪽 가장자리에 빛이 모이는 초승달 반사
+    float low = smoothstep(-0.05, 0.75, d.y / r);
+    col.rgb += half(0.30 * smoothstep(0.62, 0.95, rim) * low);
+    // 위쪽 작은 하이라이트와 아주 작은 보조 점
+    float hl = smoothstep(r * 0.17, r * 0.05, length(p - (c + float2(-0.36 * r, -0.12 * r))));
+    float hl2 = smoothstep(r * 0.09, r * 0.02, length(p - (c + float2(0.32 * r, 0.42 * r))));
+    col.rgb += half(0.50 * hl + 0.22 * hl2);
     col.a = 1.0;
     acc = col * half(a) + acc * half(1.0 - a);
+}
+
+// 길 위의 x 위치: 두 파장을 섞어 곧은 사인파처럼 보이지 않게 한다
+float pathX(float x0, float amp, float freq, float ph, float y) {
+    return x0 + amp * sin(y * freq + ph) + amp * 0.4 * sin(y * freq * 2.7 + ph * 1.9);
 }
 
 void layer(inout half4 acc, float2 p, float s, float seed) {
@@ -52,49 +66,68 @@ void layer(inout half4 acc, float2 p, float s, float seed) {
     for (int k = -1; k <= 1; k++) {
         float id = cidx + float(k);
         float sid = id + seed;
-        float r = (13.0 + 10.0 * h11(sid * 2.11 + 1.7)) * density * s;
+        float r = (12.0 + 11.0 * h11(sid * 2.11 + 1.7)) * density * s;
         float x0 = (id + 0.2 + 0.6 * h11(sid * 3.7 + 0.4)) * colW;
-        float amp = (6.0 + 14.0 * h11(sid * 5.3 + 2.2)) * density * s;
+        float amp = (5.0 + 12.0 * h11(sid * 5.3 + 2.2)) * density * s;
         float freq = (0.010 + 0.012 * h11(sid * 7.9 + 9.1)) / (density * s);
         float ph = 6.2832 * h11(sid * 11.3 + 4.4);
-        float peak = (30.0 + 40.0 * h11(sid * 13.1)) * density * s;
-        float wv = 0.5 + 0.7 * h11(sid * 17.7 + 5.5);
-        float u = time + 40.0 * h11(sid * 19.3);
-        // 속도 = peak * sin^2(wv * u) 를 적분한 거리: 멈췄다 흐르기를 반복한다
-        float dist = peak * (u / 2.0 - sin(2.0 * wv * u) / (4.0 * wv));
+        float peak = (55.0 + 45.0 * h11(sid * 13.1)) * density * s;
+        float wv = 0.35 + 0.45 * h11(sid * 17.7 + 5.5);
+        float u = time + 60.0 * h11(sid * 19.3);
+        float x = wv * u;
+        // 속도 = peak * sin^4(wv*u): 오래 멈췄다가 갑자기 흐른다. 적분한 거리와 지금 속도(0..1)
+        float dist = peak * (3.0 * u / 8.0 - sin(2.0 * x) / (4.0 * wv) + sin(4.0 * x) / (32.0 * wv));
+        float sn = pow(abs(sin(x)), 4.0);
         float cycle = resolution.y + 6.0 * r + 200.0 * density;
         float y = mod(h11(sid * 23.9) * cycle + dist, cycle) - 3.0 * r;
-        float2 c = float2(x0 + amp * sin(y * freq + ph), y);
-        float trailLen = (110.0 + 170.0 * h11(sid * 29.3)) * density * s;
+        float2 c = float2(pathX(x0, amp, freq, ph, y), y);
+        float trailLen = (120.0 + 190.0 * h11(sid * 29.3)) * density * s;
+        float tail = 1.5 + 1.7 * sn;                 // 흐를 때 길게 늘어난다
 
-        // 지나온 길의 가는 물자국(위로 갈수록 옅고 가늘다)
+        // 지나온 길의 젖은 자국(위로 갈수록 옅고 가늘다)
         float above = (c.y - r) - p.y;
         if (above > 0.0 && above < trailLen) {
             float f = 1.0 - above / trailLen;
-            float px = x0 + amp * sin(p.y * freq + ph);
-            float dx = abs(p.x - px);
-            float tw = r * 0.16 * (0.35 + 0.65 * f);
-            float al = 0.11 * f * smoothstep(tw, tw * 0.3, dx);
+            float dx = abs(p.x - pathX(x0, amp, freq, ph, p.y));
+            float tw = r * 0.30 * (0.25 + 0.75 * f);
+            float al = 0.085 * f * smoothstep(tw, tw * 0.25, dx);
             acc = half4(half(al)) + acc * half(1.0 - al);
         }
-        // 길에 남은 작은 방울들
-        for (int i = 0; i < 3; i++) {
+        // 길에 남은 작은 방울들: 간격이 불규칙하고 뭉쳐 있다
+        float by = c.y - r * 1.6;
+        for (int i = 0; i < 6; i++) {
             float fi = float(i);
             float hb = h11(sid * 31.7 + fi * 5.3);
-            float by = c.y - r * (3.0 + fi * 4.5 + 2.0 * hb);
+            by -= r * (1.2 + 3.6 * h11(sid * 41.3 + fi * 2.9));
             if (by < -r || by > resolution.y + r) continue;
-            float bx = x0 + amp * sin(by * freq + ph) + (hb - 0.5) * r * 0.9;
-            float br = r * (0.2 + 0.18 * h11(sid * 37.1 + fi));
-            float fade = 1.0 - clamp(((c.y - by) - 3.0 * r) / trailLen, 0.0, 1.0);
+            float bx = pathX(x0, amp, freq, ph, by) + (hb - 0.5) * r * 1.2;
+            float br = r * (0.10 + 0.26 * hb * hb);
+            float fade = 1.0 - clamp(((c.y - by) - 2.0 * r) / trailLen, 0.0, 1.0);
             drop(acc, p, float2(bx, by), br, roundMask(p - float2(bx, by), br), fade);
         }
         // 큰 방울(눈물방울)
-        drop(acc, p, c, r, tearMask(p - c, r), 1.0);
+        drop(acc, p, c, r, tearMask(p - c, r, tail), 1.0);
     }
+}
+
+// 이슬: 아주 작은 방울이 칸마다 천천히 맺혔다 사라진다
+void dew(inout half4 acc, float2 p) {
+    float cell = 38.0 * density;
+    float2 id = floor(p / cell);
+    float2 f = p / cell - id;
+    float hh = h12(id + 17.0);
+    if (hh < 0.45) return;
+    float life = 28.0 + 30.0 * h12(id + 3.3);
+    float t = fract((time + hh * 90.0) / life);
+    float fade = smoothstep(0.0, 0.12, t) * smoothstep(1.0, 0.78, t);
+    float2 cc = (float2(0.25 + 0.5 * h12(id + 5.1), 0.25 + 0.5 * h12(id + 8.7))) * cell + id * cell;
+    float rr = (2.2 + 3.6 * h12(id + 11.9)) * density * (0.6 + 0.4 * t);
+    drop(acc, p, cc, rr, roundMask(p - cc, rr), fade);
 }
 
 half4 main(float2 fragCoord) {
     half4 acc = half4(0.0);
+    dew(acc, fragCoord);
     layer(acc, fragCoord, 0.58, 101.0);
     layer(acc, fragCoord, 1.0, 7.0);
     return acc;
