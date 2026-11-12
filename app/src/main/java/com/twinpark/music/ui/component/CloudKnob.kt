@@ -110,6 +110,10 @@ fun CloudKnob(
     sceneLayer: androidx.compose.ui.graphics.layer.GraphicsLayer? = null,
     /** 사용자가 노브를 움직일 때마다 정규화 위치(x 오른쪽, y 아래, 길이 0..1)를 알린다. 4분면 조절에 쓴다. */
     onPositionChange: (x: Float, y: Float) -> Unit = { _, _ -> },
+    /** 장면 위, 노브 아래에 얹는 날씨(눈, 비). 노브 위에 그리면 노브를 굴절 없이 덮는다. */
+    weatherContent: @Composable () -> Unit = {},
+    /** 노브 렌즈가 장면과 함께 비추는 것(눈, 비). 장면(필드) 좌표로 필드 크기만큼 그린다. */
+    lensExtra: (androidx.compose.ui.graphics.drawscope.DrawScope.(Float, Float) -> Unit)? = null,
     /** 십자 안내선과 4분면 이름을 그린다. */
     quadrantGuides: Boolean = true,
     /** 분면별 현재 값(0..1, [Quadrant] 순서). 이름 옆에 %로 보여 준다. */
@@ -330,6 +334,8 @@ fun CloudKnob(
           drawLayer(cloudLayer)
         }
 
+        weatherContent()
+
         // 4분면 안내: 옅은 십자선과 분면 이름. 노브가 있는 분면의 이름이 밝아진다.
         if (quadrantGuides && fieldSize != IntSize.Zero) {
             val activeQuadrant = QuadrantControl.quadrantAt(pos.x, pos.y)
@@ -416,14 +422,20 @@ fun CloudKnob(
                         // 굴절: 가운데는 확대되고 가장자리로 갈수록 휘어 보이며, 가장자리에서 색이 살짝 갈라진다
                         lensLayer.renderEffect = lensEffect
                         lensLayer.record(this, layoutDirection, IntSize(size.width.toInt(), size.height.toInt())) {
-                            withTransform({ translate(-tl.x, -tl.y) }) { drawLayer(cloudLayer) }
+                            withTransform({ translate(-tl.x, -tl.y) }) {
+                                drawLayer(cloudLayer)
+                                lensExtra?.invoke(this, fieldSize.width.toFloat(), fieldSize.height.toFloat())
+                            }
                         }
                         drawLayer(lensLayer)
                     } else {
                         withTransform({
                             translate(-tl.x, -tl.y)
                             scale(LENS_ZOOM, LENS_ZOOM, pivot = Offset(tl.x + c.x, tl.y + c.y))
-                        }) { drawLayer(cloudLayer) }
+                        }) {
+                            drawLayer(cloudLayer)
+                            lensExtra?.invoke(this, fieldSize.width.toFloat(), fieldSize.height.toFloat())
+                        }
                     }
                     // 글자는 그림자로 읽히게 하고(아래 Text), 면은 맑게 둔다. 아주 옅은 푸른 틴트만 얹는다.
                     drawCircle(Color(0xFF0C1240).copy(alpha = 0.10f))
