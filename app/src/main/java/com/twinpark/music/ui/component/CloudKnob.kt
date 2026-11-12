@@ -56,6 +56,7 @@ import com.twinpark.music.domain.Quadrant
 import com.twinpark.music.domain.QuadrantControl
 import com.twinpark.music.ui.theme.AppFonts
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.text.font.FontWeight
@@ -368,6 +369,23 @@ fun CloudKnob(
             }
         }
 
+        // 유리 노브의 바닥 그림자: 뒤 장면 위에 떠 있는 느낌을 준다
+        Box(
+            Modifier
+                .offset { knobTopLeft().let { IntOffset(it.x.roundToInt(), it.y.roundToInt()) } }
+                .size(knobSize)
+                .drawBehind {
+                    val rr = size.minDimension / 2f
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0.62f to Color.Black.copy(alpha = 0.34f), 1f to Color.Transparent,
+                            center = Offset(size.width / 2f, size.height / 2f + rr * 0.16f), radius = rr * 1.32f,
+                        ),
+                        radius = rr * 1.32f,
+                        center = Offset(size.width / 2f, size.height / 2f + rr * 0.16f),
+                    )
+                },
+        )
         // 유리 노브
         Box(
             modifier = Modifier
@@ -396,13 +414,27 @@ fun CloudKnob(
                             scale(LENS_ZOOM, LENS_ZOOM, pivot = Offset(tl.x + c.x, tl.y + c.y))
                         }) { drawLayer(cloudLayer) }
                     }
-                    // 글자가 읽히도록 약하게 어둡힌다(대비 4.5:1 기준)
-                    drawCircle(Color(0xFF0C1240).copy(alpha = 0.22f))
+                    // 글자는 그림자로 읽히게 하고(아래 Text), 면은 맑게 둔다. 아주 옅은 푸른 틴트만 얹는다.
+                    drawCircle(Color(0xFF0C1240).copy(alpha = 0.10f))
+                    // 왼쪽 위의 넓고 부드러운 빛 번짐
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to Color.White.copy(alpha = 0.30f), 1f to Color.Transparent,
+                            center = Offset(size.width * 0.30f, size.height * 0.26f), radius = r * 0.75f,
+                        ),
+                    )
+                    // 오른쪽 아래 안쪽에 되비치는 빛(두꺼운 유리 바닥에 모이는 빛)
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0.55f to Color.Transparent, 0.9f to Color.White.copy(alpha = 0.16f), 1f to Color.Transparent,
+                            center = Offset(size.width * 0.66f, size.height * 0.70f), radius = r * 0.62f,
+                        ),
+                    )
                     // 두꺼운 유리의 가장자리: 안쪽은 투명하고 바깥으로 갈수록 빛이 모인다
                     drawCircle(
                         brush = Brush.radialGradient(
                             0f to Color.Transparent, 0.72f to Color.Transparent,
-                            0.93f to Color.White.copy(alpha = 0.14f), 1f to Color.White.copy(alpha = 0.38f),
+                            0.92f to Color.White.copy(alpha = 0.20f), 1f to Color.White.copy(alpha = 0.50f),
                             center = c, radius = r,
                         ),
                     )
@@ -442,6 +474,7 @@ fun CloudKnob(
                 color = Color.White,
                 fontSize = (34f * textScale).sp,
                 fontWeight = FontWeight.Light,
+                style = androidx.compose.ui.text.TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color(0x66000000), Offset(0f, 2f), 10f)),
             )
         }
 
@@ -458,10 +491,10 @@ half4 main(float2 p) {
     float R = min(size.x, size.y) * 0.5;
     float2 d = (p - c) / R;
     float r = length(d);
-    float edge = smoothstep(0.55, 1.0, r);
+    float edge = smoothstep(0.45, 1.0, r);
     // 가운데는 확대, 가장자리는 원래 위치로 이어져 휘어 보인다
-    float k = 1.0 - 0.26 * (1.0 - r * r);
-    float ca = 0.035 * edge;
+    float k = 1.0 - 0.34 * (1.0 - r * r);
+    float ca = 0.05 * edge;
     float2 q = c + d * k * R;
     half4 g = content.eval(q);
     half cr = content.eval(c + d * (k + ca) * R).r;

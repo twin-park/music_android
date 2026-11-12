@@ -234,7 +234,8 @@ fun MusicScreen(modifier: Modifier = Modifier) {
                                 if (!reduced) drawPrecipitation(precipitation, weatherClock.value / 1_000_000_000.0, sceneW, size.height, density.density, lensBase, rainAgsl)
                             }
                         }
-                        Box(Modifier.fillMaxSize().background(Color(0x55101820)).border(BorderStroke(1.dp, Color(0x22FFFFFF))))
+                        // 맑은 유리: 어두운 틴트는 글자가 읽힐 만큼만, 위쪽에 옅은 빛, 왼쪽 위가 밝은 테두리
+                        Box(Modifier.fillMaxSize().background(Color(0x40101820)).background(com.twinpark.music.ui.component.Glass.Fill).border(com.twinpark.music.ui.component.Glass.EdgeStroke))
                         orb(Modifier.fillMaxSize().padding(16.dp))
                     }
                 }
@@ -291,10 +292,10 @@ private fun OrbPanel(
                         onEnd()
                         (context as? Activity)?.finish()      // 화면은 바로 닫고, 연주는 서비스가 곡을 마무리한 뒤 끝낸다
                     },
-                    modifier = Modifier.weight(1f).height(btnH),
+                    modifier = Modifier.weight(1f).height(btnH).background(com.twinpark.music.ui.component.Glass.Fill, androidx.compose.foundation.shape.CircleShape),
                     contentPadding = btnPad,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xCCFFFFFF)),
+                    border = com.twinpark.music.ui.component.Glass.EdgeStroke,
                 ) { Text("END", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
                 OutlinedButton(
                     onClick = {
@@ -302,10 +303,10 @@ private fun OrbPanel(
                         val at = list.indexOfFirst { it.id == engineId }
                         onEngineChange(list[(at + 1) % list.size].id)
                     },
-                    modifier = Modifier.weight(1f).height(btnH),
+                    modifier = Modifier.weight(1f).height(btnH).background(com.twinpark.music.ui.component.Glass.Fill, androidx.compose.foundation.shape.CircleShape),
                     contentPadding = btnPad,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xCCFFFFFF)),
+                    border = com.twinpark.music.ui.component.Glass.EdgeStroke,
                 ) { Text("CHANGE THE MOOD", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = ui(if (compact) 14f else 17f)) }
                 if (debuggable) {
                     TextButton(
