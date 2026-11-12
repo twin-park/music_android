@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.platform.LocalDensity
@@ -55,21 +56,23 @@ fun WeatherOverlay(
     enabled: Boolean = true,
     /** 비: 흘러내리는 방울이 뒤 장면을 뒤집어 비추도록 장면 배경 사진을 준다(없으면 비는 그리지 않는다). */
     lensBase: androidx.compose.ui.graphics.ImageBitmap? = null,
+    rainAgsl: String? = null,
 ) {
     if (!enabled || precipitation == Precipitation.None) return
     val density = LocalDensity.current.density
     Canvas(modifier.fillMaxSize()) {
-        drawPrecipitation(precipitation, clockNs() / 1_000_000_000.0, size.width, size.height, density, lensBase)
+        drawPrecipitation(precipitation, clockNs() / 1_000_000_000.0, size.width, size.height, density, lensBase, rainAgsl)
     }
 }
 
 /** 크기가 (w x h)인 장면 좌표에서 눈을 그린다. 장면의 일부만 그리는 곳(패널)은 translate로 같은 자리를 맞춘다. */
 fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPrecipitation(
     p: Precipitation, t: Double, w: Float, h: Float, density: Float, lensBase: androidx.compose.ui.graphics.ImageBitmap? = null,
+    rainAgsl: String? = null,
 ) {
     when (p) {
         Precipitation.Snow -> drawSnow(t, w, h, density)
-        Precipitation.Rain -> if (lensBase != null) drawRain(t, w, h, density, lensBase)
+        Precipitation.Rain -> if (lensBase != null) drawRain(t, w, h, density, lensBase, rainAgsl)
         Precipitation.None -> Unit
     }
 }
@@ -107,7 +110,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSnow(t: Double,
  * - 길: 곧게가 아니라 구불구불한 길을 따라 내려가고, 지나온 길에 가는 물자국이 남는다(끝으로 갈수록 옅다).
  * [base]는 장면 배경 사진이고, 장면과 같은 방식(덮도록 자르고 [SCENE_ZOOM]배)으로 놓아야 방울 속 그림이 뒤와 이어진다.
  */
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRain(
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRainFallback(
     t: Double, w: Float, h: Float, density: Float, base: androidx.compose.ui.graphics.ImageBitmap,
 ) {
     val scale = maxOf(w / base.width, h / base.height) * SCENE_ZOOM
@@ -172,6 +175,61 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRain(
         // 테두리, 위쪽 하이라이트, 아래쪽 가장자리 반사
         drawPath(drop, Color.Black.copy(alpha = 0.18f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.2f * density))
         drawCircle(Color.White.copy(alpha = 0.5f), radius = r * 0.16f, center = Offset(cx - r * 0.4f, yy - r * 0.2f))
+    }
+}
+
+/** 비: API 33 이상은 GPU 셰이더(res/raw/rain_on_glass.agsl), 그 아래는 방울을 하나씩 그리는 대체 방식. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRain(
+    t: Double, w: Float, h: Float, density: Float, base: androidx.compose.ui.graphics.ImageBitmap, agsl: String?,
+) {
+    if (android.os.Build.VERSION.SDK_INT >= 33 && agsl != null) drawRainShader(t, w, h, density, base, agsl)
+    else drawRainFallback(t, w, h, density, base)
+}
+
+@androidx.annotation.RequiresApi(33)
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRainShader(
+    t: Double, w: Float, h: Float, density: Float, base: androidx.compose.ui.graphics.ImageBitmap, agsl: String,
+) {
+    val scale = maxOf(w / base.width, h / base.height) * SCENE_ZOOM
+    val dw = base.width * scale
+    val dh = base.height * scale
+    val sh = RainShader.get(base, agsl)
+    sh.setFloatUniform("resolution", w, h)
+    sh.setFloatUniform("time", (t % 4000.0).toFloat())
+    sh.setFloatUniform("density", density)
+    sh.setFloatUniform("imgRect", (w - dw) / 2f, (h - dh) / 2f, dw, dh)
+    sh.setFloatUniform("imgPx", base.width.toFloat(), base.height.toFloat())
+    drawRect(androidx.compose.ui.graphics.ShaderBrush(sh), size = androidx.compose.ui.geometry.Size(w, h))
+}
+
+/** 셰이더와 장면 사진 입력을 한 번만 만들어 둔다(UI 스레드에서만 쓴다). */
+@androidx.annotation.RequiresApi(33)
+private object RainShader {
+    private var shader: android.graphics.RuntimeShader? = null
+    private var source: androidx.compose.ui.graphics.ImageBitmap? = null
+
+    fun get(base: androidx.compose.ui.graphics.ImageBitmap, agsl: String): android.graphics.RuntimeShader {
+        val cur = shader
+        if (cur != null && source === base) return cur
+        val sh = cur ?: android.graphics.RuntimeShader(agsl)
+        sh.setInputShader(
+            "image",
+            android.graphics.BitmapShader(base.asAndroidBitmap(), android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP),
+        )
+        shader = sh
+        source = base
+        return sh
+    }
+}
+
+/** res/raw/rain_on_glass.agsl 를 읽는다(읽을 수 없으면 null: 대체 방식을 쓴다). */
+@Composable
+fun rememberRainShaderSource(): String? {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return remember {
+        runCatching {
+            context.resources.openRawResource(com.twinpark.music.R.raw.rain_on_glass).bufferedReader().use { it.readText() }
+        }.getOrNull()
     }
 }
 
