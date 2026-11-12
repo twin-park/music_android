@@ -50,6 +50,8 @@ data class Mood(
      * 묶음은 `ai/dist/상황별_파라미터.md`의 분위기 분류와, Figma 50% 시안이 비 오는 날 화면인 점을 따랐다.
      */
     val engineIds: List<String>,
+    /** 구름 대신 Figma 장면 이미지를 쓰는 분위기의 이미지 키(`ui/component/SceneArt`가 리소스로 바꾼다). null이면 절차적 구름. */
+    val sceneKey: String? = null,
 ) {
 
     companion object {
@@ -77,6 +79,7 @@ data class Mood(
             orbPose = 2,
             weather = Weather(86, 62, 8, 8),
             engineIds = listOf("비오는날", "위로", "클래식피아노"),
+            sceneKey = "rain",
         )
 
         /** 활기: 오브는 시안의 주황/분홍, 하늘은 석양 (Figma 70% 시안) */

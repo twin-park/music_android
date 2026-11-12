@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
@@ -93,26 +94,37 @@ fun CloudKnob(
     mood: Mood,
     modifier: Modifier = Modifier,
     reducedMotion: Boolean = false,
+    /** 장면 모서리 둥글기. 화면 전체에 깔 때는 0. */
+    cornerRadius: androidx.compose.ui.unit.Dp = 28.dp,
+    /** 오른쪽에서 이만큼은 노브가 가지 않는다(다른 패널이 위에 겹치는 자리). 장면(하늘, 구름)은 이 자리까지 그려진다. */
+    endInset: androidx.compose.ui.unit.Dp = 0.dp,
+    /** 있으면 하늘과 구름 대신 이 Figma 이미지를 장면으로 그린다. */
+    scene: SceneArt? = null,
+    /** 장면을 기록할 레이어. 밖에서 주면 다른 곳(오른쪽 패널의 흐림 배경)이 같은 장면을 다시 그릴 수 있다. */
+    sceneLayer: androidx.compose.ui.graphics.layer.GraphicsLayer? = null,
 ) {
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
     var fieldSize by remember { mutableStateOf(IntSize.Zero) }
+    val endInsetPx = with(density) { endInset.toPx() }
+    val fieldW = (fieldSize.width - endInsetPx).coerceAtLeast(1f)            // 노브가 움직이는 영역의 폭
 
     // 노브가 움직이는 범위와 버튼 크기는 카드 크기에 비례한다. 노브가 그려지는 지름은 음량 값에 비례한다
     // (Figma 시안: 값 20%에서 90%로 갈수록 노브 지름이 왼쪽 영역 폭의 12%에서 37%로 커진다).
     val minKnobPx = with(density) { MIN_KNOB.toPx() }
     val maxKnobPx = with(density) { MAX_KNOB.toPx() }
     val travelPx = if (fieldSize == IntSize.Zero) minKnobPx
-    else min(fieldSize.width * KNOB_WIDTH_RATIO, fieldSize.height * KNOB_HEIGHT_RATIO).coerceIn(minKnobPx, maxKnobPx)
+    else min(fieldW * KNOB_WIDTH_RATIO, fieldSize.height * KNOB_HEIGHT_RATIO).coerceIn(minKnobPx, maxKnobPx)
     val ratio = (KNOB_RATIO_AT_20 + (volume - 0.2f) * KNOB_RATIO_SLOPE).coerceIn(KNOB_RATIO_AT_20 * 0.8f, KNOB_RATIO_AT_20 + 0.7f * KNOB_RATIO_SLOPE)
     val drawnRaw = if (fieldSize == IntSize.Zero) minKnobPx
-    else min(fieldSize.width * ratio, fieldSize.height * KNOB_MAX_HEIGHT_RATIO).coerceIn(minKnobPx, maxKnobPx * 1.6f)
+    else min(fieldW * ratio, fieldSize.height * KNOB_MAX_HEIGHT_RATIO).coerceIn(minKnobPx, maxKnobPx * 1.6f)
     val knobPx = (drawnRaw / 4f).roundToInt() * 4f               // 4px 단위로 맞춰 렌즈 셰이더를 자주 다시 만들지 않는다
     val knobSize = with(density) { knobPx.toDp() }
     val unitScale = with(density) { travelPx.toDp() } / MIN_KNOB   // 버튼과 간격의 배율(노브가 움직이는 범위 기준)
     val textScale = knobSize / MIN_KNOB                          // 퍼센트 글자는 그려진 노브 크기에 맞춘다
     val stepperSize = STEPPER_SIZE * unitScale
     val stepperMargin = STEPPER_MARGIN * unitScale
+    val stepperHalfWidth = stepperSize + 8.dp * unitScale               // -, + 두 버튼과 사이 간격(16dp)의 절반
     // 아래쪽 −/+ 버튼 자리. 노브는 이 자리를 뺀 윗부분에서만 움직여 버튼과 겹치지 않는다.
     val reservedPx = with(density) { (stepperSize + stepperMargin * 2).toPx() }
 
@@ -128,18 +140,18 @@ fun CloudKnob(
 
     /** 노브 왼쪽 위 모서리의 영역 좌표(px) */
     fun knobTopLeft(): Offset {
-        val halfW = ((fieldSize.width - travelPx) / 2f).coerceAtLeast(0f)
+        val halfW = ((fieldW - travelPx) / 2f).coerceAtLeast(0f)
         val halfH = ((fieldSize.height - reservedPx - travelPx) / 2f).coerceAtLeast(0f)
         return Offset(
-            fieldSize.width / 2f + pos.x * halfW - knobPx / 2f,
+            fieldW / 2f + pos.x * halfW - knobPx / 2f,
             (fieldSize.height - reservedPx) / 2f + pos.y * halfH - knobPx / 2f,
         )
     }
 
     fun moveTo(p: Offset) {
-        val halfW = ((fieldSize.width - travelPx) / 2f).coerceAtLeast(1f)
+        val halfW = ((fieldW - travelPx) / 2f).coerceAtLeast(1f)
         val halfH = ((fieldSize.height - reservedPx - travelPx) / 2f).coerceAtLeast(1f)
-        var n = Offset((p.x - fieldSize.width / 2f) / halfW, (p.y - (fieldSize.height - reservedPx) / 2f) / halfH)
+        var n = Offset((p.x - fieldW / 2f) / halfW, (p.y - (fieldSize.height - reservedPx) / 2f) / halfH)
         val len = n.getDistance()
         if (len > 1f) n /= len // 타원 밖으로는 나가지 않는다
         pos = n
@@ -177,11 +189,14 @@ fun CloudKnob(
     // 노브는 정사각형이라 크기를 만들 때 한 번만 넣는다(효과를 만든 뒤에 바꾸면 반영되지 않는다)
     val lensShader = remember(knobPx) { createLensShader()?.also { it.setFloatUniform("size", knobPx, knobPx) } }
     val lensEffect = remember(lensShader) { lensShader?.let { android.graphics.RenderEffect.createRuntimeShaderEffect(it, "content").asComposeRenderEffect() } }
-    val cloudLayer = rememberGraphicsLayer().also { it.compositingStrategy = androidx.compose.ui.graphics.layer.CompositingStrategy.Offscreen }
+    val ownLayer = rememberGraphicsLayer()
+    val cloudLayer = (sceneLayer ?: ownLayer).also { it.compositingStrategy = androidx.compose.ui.graphics.layer.CompositingStrategy.Offscreen }
+    val sceneBase = scene?.let { androidx.compose.ui.graphics.ImageBitmap.imageResource(it.base) }
+    val sceneOverlay = scene?.overlay?.let { androidx.compose.ui.graphics.ImageBitmap.imageResource(it) }
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(28.dp))
+            .clip(RoundedCornerShape(cornerRadius))
             .onSizeChanged { fieldSize = it }
             .semantics {
                 contentDescription = "음량"
@@ -209,6 +224,12 @@ fun CloudKnob(
             val w = size.width
             val h = size.height
             val t = cloudTick.value / CLOUD_HZ.toFloat()
+            if (sceneBase != null) {
+                // Figma 장면 이미지: 화면을 덮도록 자르고(Crop), 아주 천천히 흔들려 움직이는 이미지로 보이게 한다.
+                val drift = 0f                       // 장면 사진은 고정: 그 위의 물방울 렌즈가 어긋나지 않게 한다
+                drawSceneImage(sceneBase, w, h, SCENE_ZOOM, drift, 1f, overlay = sceneOverlay, overlayAlpha = scene.overlayAlpha)
+                return@record
+            }
 
             // 하늘: 왼쪽 위 > 오른쪽 아래
             drawRect(
@@ -379,8 +400,8 @@ fun CloudKnob(
         // 보조 조작: Pleos UI 가이드의 Stepper
         Row(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = stepperMargin),
+                .align(Alignment.BottomStart)
+                .padding(bottom = stepperMargin, start = (with(density) { (fieldW / 2f).toDp() } - stepperHalfWidth).coerceAtLeast(0.dp)),
             horizontalArrangement = Arrangement.spacedBy(16.dp * unitScale),
         ) {
             StepButton(label = "−", description = "음량 줄이기", size = stepperSize, unitScale = unitScale) {
@@ -524,4 +545,30 @@ private fun makePuffs(index: Int): FloatArray {
         out[k++] = 0.32f + 0.22f * rnd()
     }
     return out
+}
+
+
+/**
+ * [img]를 (w x h)를 덮도록 가운데 기준으로 자르고(Crop) [zoom]배 키워 [dx]만큼 옮겨 그린다.
+ * [overlay]는 Figma에서 배경 프레임에 꽉 차게 늘려 맞춘 레이어라, 배경이 그려진 영역과 똑같이(비율 유지 없이) 채운다.
+ */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSceneImage(
+    img: androidx.compose.ui.graphics.ImageBitmap,
+    w: Float,
+    h: Float,
+    zoom: Float,
+    dx: Float,
+    alpha: Float = 1f,
+    overlay: androidx.compose.ui.graphics.ImageBitmap? = null,
+    overlayAlpha: Float = 0.5f,
+) {
+    val scale = maxOf(w / img.width, h / img.height) * zoom
+    val dw = img.width * scale
+    val dh = img.height * scale
+    val off = androidx.compose.ui.unit.IntOffset(((w - dw) / 2f + dx).roundToInt(), ((h - dh) / 2f).roundToInt())
+    val size = androidx.compose.ui.unit.IntSize(dw.roundToInt(), dh.roundToInt())
+    drawImage(image = img, dstOffset = off, dstSize = size, alpha = alpha, filterQuality = androidx.compose.ui.graphics.FilterQuality.High)
+    if (overlay != null) {
+        drawImage(image = overlay, dstOffset = off, dstSize = size, alpha = overlayAlpha, filterQuality = androidx.compose.ui.graphics.FilterQuality.High)
+    }
 }
