@@ -89,14 +89,14 @@ import kotlin.math.sin
  * - 5% 단위로 햅틱 피드백을 준다.
  * - 접근성 setProgress(음량 올리기, 내리기)를 지원한다. (+/- 버튼은 노브를 직접 끌어 조절하므로 뺐다)
  *
- * [volume]은 0..1이다. 외부에서 값이 바뀌면(버튼, 음성) 노브가 현재 방향을 유지한 채 거리만 바뀐다.
+ * 노브의 크기와 숫자는 노브가 놓인 구획의 값(중심에서의 거리)이고, 구획별 값은 밖([quadrantLevels])에서 기억한다.
  *
  * 구름 표현은 prototype/cloud.html에서 시안과 비교해 맞춘 값이다. 두 곳의 상수와 LCG를 같이 유지한다.
  */
 @Composable
 fun CloudKnob(
-    volume: Float,
-    onVolumeChange: (Float) -> Unit,
+    /** 시작할 때 노브 위치(정규화 좌표). 그 뒤로는 사용자가 노브를 움직인 대로 따라간다. */
+    initialPos: Offset,
     mood: Mood,
     modifier: Modifier = Modifier,
     reducedMotion: Boolean = false,
@@ -112,6 +112,8 @@ fun CloudKnob(
     onPositionChange: (x: Float, y: Float) -> Unit = { _, _ -> },
     /** 십자 안내선과 4분면 이름을 그린다. */
     quadrantGuides: Boolean = true,
+    /** 분면별 현재 값(0..1, [Quadrant] 순서). 이름 옆에 %로 보여 준다. */
+    quadrantLevels: FloatArray = QuadrantControl.initialLevels(),
 ) {
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
@@ -119,13 +121,19 @@ fun CloudKnob(
     val endInsetPx = with(density) { endInset.toPx() }
     val fieldW = (fieldSize.width - endInsetPx).coerceAtLeast(1f)            // 노브가 움직이는 영역의 폭
 
+    /** 노브 위치. 영역 반쪽 크기를 1로 한 정규화 좌표이고, 길이(0..1)가 노브가 놓인 구획의 값이다. */
+    var pos by remember { mutableStateOf(initialPos) }
+    var lastStep by remember { mutableIntStateOf((initialPos.getDistance() * STEPS).roundToInt()) }
+    val latestOnPosition by rememberUpdatedState(onPositionChange)
+
     // 노브가 움직이는 범위와 버튼 크기는 카드 크기에 비례한다. 노브가 그려지는 지름은 음량 값에 비례한다
     // (Figma 시안: 값 20%에서 90%로 갈수록 노브 지름이 왼쪽 영역 폭의 12%에서 37%로 커진다).
     val minKnobPx = with(density) { MIN_KNOB.toPx() }
     val maxKnobPx = with(density) { MAX_KNOB.toPx() }
     val travelPx = if (fieldSize == IntSize.Zero) minKnobPx
     else min(fieldW * KNOB_WIDTH_RATIO, fieldSize.height * KNOB_HEIGHT_RATIO).coerceIn(minKnobPx, maxKnobPx)
-    val ratio = (KNOB_RATIO_AT_20 + (volume - 0.2f) * KNOB_RATIO_SLOPE).coerceIn(KNOB_RATIO_AT_20 * 0.8f, KNOB_RATIO_AT_20 + 0.7f * KNOB_RATIO_SLOPE)
+    val knobValue = pos.getDistance().coerceIn(0f, 1f)           // 노브의 크기와 숫자는 같은 값(노브가 놓인 구획의 값)
+    val ratio = (KNOB_RATIO_AT_20 + (knobValue - 0.2f) * KNOB_RATIO_SLOPE).coerceIn(KNOB_RATIO_AT_20 * 0.8f, KNOB_RATIO_AT_20 + 0.7f * KNOB_RATIO_SLOPE)
     val drawnRaw = if (fieldSize == IntSize.Zero) minKnobPx
     else min(fieldW * ratio, fieldSize.height * KNOB_MAX_HEIGHT_RATIO).coerceIn(minKnobPx, maxKnobPx * 1.6f)
     val knobPx = (drawnRaw / 4f).roundToInt() * 4f               // 4px 단위로 맞춰 렌즈 셰이더를 자주 다시 만들지 않는다
@@ -135,16 +143,7 @@ fun CloudKnob(
     // 아래쪽 여백. 노브가 화면 맨 아래 가장자리에 붙지 않게 한다.
     val reservedPx = with(density) { (EDGE_MARGIN * unitScale * 2).toPx() }
 
-    /** 노브 위치. 영역 반쪽 크기를 1로 한 정규화 좌표이고, 길이(0..1)가 음량이다. */
-    var pos by remember { mutableStateOf(withLength(DEFAULT_DIRECTION, volume)) }
-    var lastStep by remember { mutableIntStateOf((volume * STEPS).roundToInt()) }
-    val latestOnChange by rememberUpdatedState(onVolumeChange)
-    val latestOnPosition by rememberUpdatedState(onPositionChange)
 
-    // 버튼이나 음성으로 음량이 바뀌면 방향은 유지하고 거리만 맞춘다.
-    LaunchedEffect(volume) {
-        if (abs(pos.getDistance() - volume) > 0.005f) pos = withLength(pos, volume)
-    }
 
     /** 노브 왼쪽 위 모서리의 영역 좌표(px) */
     fun knobTopLeft(): Offset {
@@ -169,7 +168,6 @@ fun CloudKnob(
             lastStep = step
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         }
-        latestOnChange(v)
         latestOnPosition(n.x, n.y)
     }
 
@@ -192,7 +190,7 @@ fun CloudKnob(
     // 구름은 아주 느리게 떠다니므로 초당 CLOUD_HZ번만 다시 그린다. 그 사이 프레임은 저장된 결과를 쓴다.
     val cloudTick = remember { derivedStateOf { (phase.doubleValue * CLOUD_HZ).toLong() } }
 
-    val percent = (volume * 100f).roundToInt()
+    val percent = (knobValue * 100f).roundToInt()
     // 구름 그림을 한 번 기록해 두고, 화면과 노브 안(렌즈)에서 다시 재생한다.
     val lensLayer = rememberGraphicsLayer()
     // 노브는 정사각형이라 크기를 만들 때 한 번만 넣는다(효과를 만든 뒤에 바꾸면 반영되지 않는다)
@@ -208,10 +206,11 @@ fun CloudKnob(
             .clip(RoundedCornerShape(cornerRadius))
             .onSizeChanged { fieldSize = it }
             .semantics {
-                contentDescription = "음량"
-                progressBarRangeInfo = ProgressBarRangeInfo(volume, 0f..1f)
+                contentDescription = "노브 값"
+                progressBarRangeInfo = ProgressBarRangeInfo(knobValue, 0f..1f)
                 setProgress { target ->
-                    latestOnChange(target.coerceIn(0f, 1f))
+                    pos = withLength(pos, target.coerceIn(0f, 1f))
+                    latestOnPosition(pos.x, pos.y)
                     true
                 }
             }
@@ -333,7 +332,7 @@ fun CloudKnob(
 
         // 4분면 안내: 옅은 십자선과 분면 이름. 노브가 있는 분면의 이름이 밝아진다.
         if (quadrantGuides && fieldSize != IntSize.Zero) {
-            val gw = QuadrantControl.weights(pos.x, pos.y)
+            val activeQuadrant = QuadrantControl.quadrantAt(pos.x, pos.y)
             val centerX = fieldW / 2f
             val centerY = (fieldSize.height - reservedPx) / 2f
             val dash = PathEffect.dashPathEffect(floatArrayOf(10f, 14f))
@@ -341,6 +340,18 @@ fun CloudKnob(
                 val lineColor = Color.White.copy(alpha = 0.30f)
                 drawLine(lineColor, Offset(centerX, centerY * 0.10f), Offset(centerX, centerY * 1.90f), strokeWidth = 1.5f, pathEffect = dash)
                 drawLine(lineColor, Offset(fieldW * 0.04f, centerY), Offset(fieldW * 0.96f, centerY), strokeWidth = 1.5f, pathEffect = dash)
+                // 기억된 값 표시: 노브가 다른 구획에 있어도 각 구획의 값이 어디쯤인지 작은 고리로 보인다(노브는 놓인 구획의 값을 직접 보여 준다)
+                val halfW = ((fieldW - travelPx) / 2f).coerceAtLeast(0f)
+                val halfH = ((fieldSize.height - reservedPx - travelPx) / 2f).coerceAtLeast(0f)
+                Quadrant.values().forEachIndexed { i, q ->
+                    if (q == activeQuadrant) return@forEachIndexed
+                    val sx = if (i % 2 == 0) -1f else 1f
+                    val sy = if (i < 2) -1f else 1f
+                    val l = quadrantLevels[i] * 0.7071f
+                    val marker = Offset(centerX + sx * l * halfW, centerY + sy * l * halfH)
+                    drawCircle(Color.White.copy(alpha = 0.55f), radius = 7.dp.toPx() * unitScale, center = marker, style = Stroke(width = 1.6.dp.toPx()))
+                    drawCircle(Color.White.copy(alpha = 0.55f), radius = 2.2.dp.toPx() * unitScale, center = marker)
+                }
             }
             val labelW = 150.dp * unitScale
             val labelH = 28.dp * unitScale
@@ -358,8 +369,8 @@ fun CloudKnob(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = q.label,
-                        color = Color.White.copy(alpha = 0.30f + 0.70f * gw[i]),
+                        text = "${q.label} ${(quadrantLevels[i] * 100f).roundToInt()}%",
+                        color = Color.White.copy(alpha = if (q == activeQuadrant) 1f else 0.40f),
                         fontSize = (13f * unitScale).sp,
                         letterSpacing = 2.sp,
                         fontFamily = AppFonts.Inter,
@@ -378,7 +389,7 @@ fun CloudKnob(
                     val rr = size.minDimension / 2f
                     drawCircle(
                         brush = Brush.radialGradient(
-                            0.62f to Color.Black.copy(alpha = 0.34f), 1f to Color.Transparent,
+                            0.62f to Color.Black.copy(alpha = 0.14f), 1f to Color.Transparent,
                             center = Offset(size.width / 2f, size.height / 2f + rr * 0.16f), radius = rr * 1.32f,
                         ),
                         radius = rr * 1.32f,
@@ -474,7 +485,7 @@ fun CloudKnob(
                 color = Color.White,
                 fontSize = (34f * textScale).sp,
                 fontWeight = FontWeight.Light,
-                style = androidx.compose.ui.text.TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color(0x66000000), Offset(0f, 2f), 10f)),
+                style = androidx.compose.ui.text.TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color(0x33000000), Offset(0f, 1f), 6f)),
             )
         }
 
