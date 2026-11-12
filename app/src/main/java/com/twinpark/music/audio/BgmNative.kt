@@ -34,4 +34,7 @@ internal object BgmNative {
 
     /** 소리 장치가 지금까지 읽어 간 소리 프레임 수(재생 위치). 음의 프레임과 같은 눈금이다. */
     external fun nativePlayed(): Long
+
+    /** 소리 줄이 앞서 만들어 두는 양(초). 피아노 화면이 음을 일찍 알려 받으려고 늘린다. */
+    external fun nativeLead(sec: Float)
 }

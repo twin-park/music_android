@@ -25,6 +25,10 @@ import com.twinpark.music.audio.BgmController
 fun PianoRoll(tint: Color, modifier: Modifier = Modifier) {
     val notes = remember { ArrayList<Long>() }
     var tick by remember { mutableLongStateOf(0L) }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        BgmController.setPianoLead(true)                            // 보이는 동안만 음을 일찍 알려 받는다
+        onDispose { BgmController.setPianoLead(false) }
+    }
     LaunchedEffect(Unit) {
         while (true) withFrameNanos { now ->
             for (v in BgmController.drainNotes()) notes.add(v)
@@ -99,8 +103,8 @@ private const val LOW = 36            // C2
 private const val HIGH = 96           // C7
 private const val WHITE_COUNT = 36    // C2..C7 사이 흰 건반 수
 private val BLACK = setOf(1, 3, 6, 8, 10)
-// 화면 맨 위에서 건반까지 내려오는 시간(초). 엔진이 음을 재생 약 0.16초 전에야 알려 주므로(2026-11-12 실측) 음은 화면 아래쪽 약 1/4에서
-// 나타나 건반에 닿는다. 더 길게 내려오게 하려면 엔진의 소리 줄 앞서기(Player::kFill)를 늘려 소리를 늦춰야 한다.
-private const val FALL_S = 0.6f
+// 화면 맨 위에서 건반까지 내려오는 시간(초). 기본 상태에서는 엔진이 음을 재생 약 0.16초 전에야 알려 주므로(2026-11-12 실측)
+// 피아노 화면이 보이는 동안 소리 줄 앞서기를 0.7초로 늘려(BgmController.setPianoLead) 위쪽에서부터 내려오게 한다.
+private const val FALL_S = 0.8f
 private const val KEEP_S = 0.5        // 닿은 뒤에도 이만큼 보관(건반 불빛과 막대가 사라질 때까지)
 private const val GLOW_S = 0.28       // 건반이 빛나는 시간
