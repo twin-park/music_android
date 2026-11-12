@@ -107,6 +107,8 @@ class BgmPlayer(context: Context) {
 
     /** 오브가 쓸 박자 신호(0..1). */
     fun beat(): Float = BgmNative.nativeBeat()
+    fun notes(): LongArray = BgmNative.nativeNotes()
+    fun played(): Long = BgmNative.nativePlayed()
 
     fun status(): BgmStatus? {
         val f = BgmNative.nativeStatus().split('|')
