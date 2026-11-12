@@ -20,7 +20,7 @@ object OrbPoses {
      * 포즈별 깊이 어둡기(0이면 앞뒤 밝기가 같다). 어두운 배경 시안은 뒤쪽을 어둡게 해서 깊이를 주고,
      * 밝은 하늘색 시안(하늘/노랑)은 거의 어둡히지 않는다.
      */
-    val DEPTH_DIM = floatArrayOf(0.80f, 0.55f, 0.75f, 0.82f, 0.12f, 0.30f)
+    val DEPTH_DIM = floatArrayOf(0.80f, 0.80f, 0.75f, 0.82f, 0.78f, 0.80f)
 
     /** 포즈별 가장자리 구슬 확대량. 면 포즈(보라, 하늘/노랑)만 옆으로 선 구간을 메우려고 키운다. */
     val EDGE_GROW = floatArrayOf(1.10f, 0.35f, 0.45f, 0.55f, 0f, 0f)
