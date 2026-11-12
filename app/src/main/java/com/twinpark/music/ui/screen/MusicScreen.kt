@@ -129,6 +129,18 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     }
     // 음량 노브 0..1은 소리 크기에 제곱을 취해 귀에 고르게 느껴지게 한다
     LaunchedEffect(volume) { BgmController.setVolume(volume * volume) }
+
+    // 노브가 놓인 4분면(ECHO, NOTES, PITCH, TEMPO)이 정하는 조절량. 노브를 만지기 전에는 0이라 분위기 기본값 그대로다.
+    // 분면을 옮기면 이전 항목은 기본값으로, 새 항목은 목표값으로 천천히 바뀐다(음악이 갑자기 달라지지 않게).
+    var quadrantTarget by remember { mutableStateOf(com.twinpark.music.domain.EngineParams()) }
+    val quadSpec = androidx.compose.animation.core.tween<Float>(durationMillis = 900)
+    val qReg by androidx.compose.animation.core.animateFloatAsState(quadrantTarget.reg, quadSpec, label = "qReg")
+    val qTempo by androidx.compose.animation.core.animateFloatAsState(quadrantTarget.tempo, quadSpec, label = "qTempo")
+    val qDens by androidx.compose.animation.core.animateFloatAsState(quadrantTarget.dens, quadSpec, label = "qDens")
+    val qSpace by androidx.compose.animation.core.animateFloatAsState(quadrantTarget.space, quadSpec, label = "qSpace")
+    LaunchedEffect(qReg, qTempo, qDens, qSpace) {
+        BgmController.setKnobParams(com.twinpark.music.domain.EngineParams(reg = qReg, tempo = qTempo, dens = qDens, space = qSpace))
+    }
     LaunchedEffect(bgmState) {
         while (bgmState == BgmState.Ready) {
             status = BgmController.status()
@@ -151,6 +163,9 @@ fun MusicScreen(modifier: Modifier = Modifier) {
                 CloudKnob(
                     volume = volume,
                     onVolumeChange = { volume = it },
+                    onPositionChange = { x, y ->
+                        quadrantTarget = com.twinpark.music.domain.QuadrantControl.toParams(com.twinpark.music.domain.QuadrantControl.amounts(x, y))
+                    },
                     mood = mood,
                     reducedMotion = reduced,
                     cornerRadius = corner,
