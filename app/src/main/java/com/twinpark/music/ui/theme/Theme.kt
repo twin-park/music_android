@@ -4,6 +4,8 @@ import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -53,6 +55,8 @@ fun MusicTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
-        content = content
-    )
+    ) {
+        // 화면 전체의 기본 글꼴은 Inter(디자이너 노트). Pretendard가 필요한 글자는 각자 지정한다.
+        ProvideTextStyle(TextStyle(fontFamily = AppFonts.Inter), content)
+    }
 }

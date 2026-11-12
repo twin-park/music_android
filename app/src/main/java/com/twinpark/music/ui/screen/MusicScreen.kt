@@ -58,6 +58,7 @@ import com.twinpark.music.audio.BgmState
 import com.twinpark.music.audio.BgmStatus
 import com.twinpark.music.audio.SituationDirector
 import com.twinpark.music.domain.Mood
+import com.twinpark.music.ui.theme.AppFonts
 import com.twinpark.music.domain.TimeOfDay
 import com.twinpark.music.domain.WeatherSource
 import com.twinpark.music.domain.WeatherState
@@ -221,7 +222,7 @@ private fun OrbPanel(
                     contentPadding = if (compact) PaddingValues(horizontal = 12.dp, vertical = 2.dp) else ButtonDefaults.ContentPadding,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                     border = BorderStroke(1.dp, Color(0x99FFFFFF)),
-                ) { Text("끝내기", fontSize = ui(if (compact) 13f else 15f), fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
+                ) { Text("끝내기", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
                 Spacer(Modifier.weight(1f))
                 if (debuggable) {
                     TextButton(
@@ -234,7 +235,7 @@ private fun OrbPanel(
             // 제목: 위 가로선 + "AI가 연주중"
             Column {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White))
-                Text("AI가 연주중", color = Color.White, fontSize = ui(16f), modifier = Modifier.padding(top = 4.dp))
+                Text("AI가 연주중", color = Color.White, fontSize = ui(16f), fontFamily = AppFonts.Pretendard, modifier = Modifier.padding(top = 4.dp))
                 Text(
                     text = when (bgmState) {
                         BgmState.Idle, BgmState.Loading -> "음악 준비 중..."
@@ -267,7 +268,7 @@ private fun OrbPanel(
                     modifier = Modifier.fillMaxWidth().height(((if (compact) 36 else 44) * LocalUiScale.current).dp),
                     contentPadding = btnPad,
                     colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
-                ) { Text("분위기 바꾸기", fontSize = ui(if (compact) 13f else 15f), fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
+                ) { Text("분위기 바꾸기", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
             }
         }
         // 개발용(디버그 빌드만): 접어 두었다가 펼치면 패널 위에 겹쳐 보인다. 오브 자리를 빼앗지 않는다.
