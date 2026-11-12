@@ -26,7 +26,7 @@ object OrbPoses {
     val EDGE_GROW = floatArrayOf(1.10f, 0.35f, 0.45f, 0.55f, 0f)
 
     /** 포즈별 최소 밝기(능선이 아닌 면의 밝기). 밝은 시안일수록 높다. */
-    val RIM_FLOOR = floatArrayOf(0.55f, 0.90f, 0.70f, 0.50f, 0.85f)
+    val RIM_FLOOR = floatArrayOf(0.55f, 0.72f, 0.70f, 0.50f, 0.85f)
 
     /** 포즈별 색: 가장자리 0 -> 0.5 -> 1을 base -> mid -> peak로 칠한다. */
     val COLORS: Array<Triple<Color, Color, Color>> = arrayOf(
@@ -35,7 +35,7 @@ object OrbPoses {
         Triple(Color(0.12f, 0.78f, 0.06f), Color(0.38f, 0.90f, 0.03f), Color(0.97f, 0.97f, 0.02f)),
         // 보라 (30%)
         // 시안: 어두운 남색 구슬에 가장자리만 라일락으로 빛남
-        Triple(Color(0.20f, 0.30f, 0.88f), Color(0.50f, 0.42f, 1.00f), Color(0.86f, 0.74f, 1.00f)),
+        Triple(Color(0.18f, 0.26f, 0.90f), Color(0.50f, 0.42f, 1.00f), Color(0.88f, 0.76f, 1.00f)),
         // 파랑 (50%)
         // 시안 샘플: 정면 하늘색(101,185,236), 가장자리 라일락(180,144,239)
         Triple(Color(0.22f, 0.60f, 1.00f), Color(0.26f, 0.58f, 1.00f), Color(0.64f, 0.40f, 0.98f)),

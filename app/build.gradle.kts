@@ -23,7 +23,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // 차량 BGM 엔진(C++)은 arm64 기기만 지원한다
-        ndk { abiFilters += "arm64-v8a" }
+        ndk { abiFilters += if (project.hasProperty("emuAbi")) "x86_64" else "arm64-v8a" }   // -PemuAbi: x86_64 에뮬레이터용(arm64 대신)
         externalNativeBuild { cmake { arguments += listOf("-DANDROID_STL=c++_static") } }
     }
     externalNativeBuild {
