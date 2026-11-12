@@ -65,6 +65,8 @@ import com.twinpark.music.domain.WeatherState
 import com.twinpark.music.domain.TrackerState
 import com.twinpark.music.domain.Weather
 import com.twinpark.music.ui.component.CloudKnob
+import com.twinpark.music.ui.component.Precipitation
+import com.twinpark.music.ui.component.WeatherOverlay
 import com.twinpark.music.ui.component.orb.BeadOrb
 
 /**
@@ -86,7 +88,8 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     val manualWeather by WeatherSource.manual.collectAsState()
     var clockTick by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) { while (true) { delay(60_000); clockTick++ } }          // 시간대가 넘어가는 순간을 따라간다
-    val mood = remember(manualWeather, clockTick) { WeatherSource.resolve(manualWeather).scene() }
+    val weatherNow = remember(manualWeather, clockTick) { WeatherSource.resolve(manualWeather) }
+    val mood = remember(weatherNow) { weatherNow.scene() }
     val skyColors = mood.sky.mapIndexed { i, c -> animateColorAsState(c, tween(1500), label = "bg$i").value }
     var sensed by remember { mutableStateOf(emptySet<String>()) }        // 디버그: 귀가 들은 것으로 치는 단어들
     val situation by SituationDirector.state.collectAsState()
@@ -180,6 +183,11 @@ fun MusicScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
+        // 날씨 배경: 눈과 비가 화면 전체에 천천히 내린다(터치는 그대로 통과한다). 저모션(주행 규제)에서는 끈다.
+        WeatherOverlay(
+            precipitation = when { weatherNow.snowing -> Precipitation.Snow; weatherNow.raining -> Precipitation.Rain; else -> Precipitation.None },
+            enabled = !reduced,
+        )
     }
 }
 
