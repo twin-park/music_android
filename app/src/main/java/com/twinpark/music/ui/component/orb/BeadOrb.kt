@@ -295,8 +295,8 @@ private const val DEPTH_HALF = 1.45f
  */
 private const val BEAD_DIAMETER = 0.0195f
 
-/** 초당 키프레임 이동량. 4개 키프레임이면 한 바퀴에 약 8초. */
-private const val FLOW_RATE = 0.5f
+/** 초당 키프레임 이동량(분위기 속도 1 기준). 키프레임이 8개라 한 바퀴에 약 6초(예전 4개, 0.5일 때 약 8초보다 조금 빠르다). */
+private const val FLOW_RATE = 1.3f
 
 /** 포즈가 바뀔 때 가중치가 따라가는 시간. */
 private const val TRANSITION_MS = 1600
