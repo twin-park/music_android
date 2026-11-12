@@ -56,6 +56,9 @@ import com.twinpark.music.audio.BgmState
 import com.twinpark.music.audio.BgmStatus
 import com.twinpark.music.audio.SituationDirector
 import com.twinpark.music.domain.Mood
+import com.twinpark.music.domain.TimeOfDay
+import com.twinpark.music.domain.WeatherSource
+import com.twinpark.music.domain.WeatherState
 import com.twinpark.music.domain.TrackerState
 import com.twinpark.music.domain.Weather
 import com.twinpark.music.ui.component.CloudKnob
@@ -76,7 +79,11 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     // 화면을 다시 열면 연주 중이던 분위기를 이어서 보여 준다
     // 분위기는 컨트롤러가 쥔다: 상황 판단(귀가 알려 준 단어)이나 사용자 조작이 바꾸고, 오브와 하늘은 그에 맞는 장면을 쓴다
     val engineId by BgmController.moodId.collectAsState()
-    val mood = Mood.forEngine(engineId)
+    // 오브와 하늘 장면은 음악 분위기가 아니라 바깥 날씨(시간대, 비)가 고른다. DEV 패널이 정한 수동 값이 없으면 기기 시계를 따른다.
+    val manualWeather by WeatherSource.manual.collectAsState()
+    var clockTick by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) { while (true) { delay(60_000); clockTick++ } }          // 시간대가 넘어가는 순간을 따라간다
+    val mood = remember(manualWeather, clockTick) { WeatherSource.resolve(manualWeather).scene() }
     val skyColors = mood.sky.mapIndexed { i, c -> animateColorAsState(c, tween(1500), label = "bg$i").value }
     var sensed by remember { mutableStateOf(emptySet<String>()) }        // 디버그: 귀가 들은 것으로 치는 단어들
     val situation by SituationDirector.state.collectAsState()
@@ -334,11 +341,36 @@ private fun DevControls(
     onReducedChange: (Boolean) -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    // 날씨: 오브와 장면을 정한다. 자동이면 기기 시계(비 없음), 시간대나 비를 누르면 그 값으로 고정한다.
+    val manual by WeatherSource.manual.collectAsState()
     Row(
         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Text("날씨:", color = Color.White.copy(alpha = 0.7f), fontSize = ui(12f))
+        val chip: @Composable (String, Boolean, () -> Unit) -> Unit = { text, on, click ->
+            Button(
+                onClick = click,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (on) Color.White else Color(0x33FFFFFF),
+                    contentColor = if (on) Color.Black else Color.White,
+                ),
+            ) { Text(text, fontSize = ui(12f), maxLines = 1) }
+        }
+        chip("자동", manual == null) { WeatherSource.setManual(null) }
+        TimeOfDay.values().forEach { t ->
+            chip(t.label, manual?.time == t && manual?.raining != true) { WeatherSource.setManual(WeatherState(t, raining = false)) }
+        }
+        chip("비", manual?.raining == true) { WeatherSource.setManual(WeatherState(manual?.time ?: TimeOfDay.now(), raining = true)) }
+    }
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("음악:", color = Color.White.copy(alpha = 0.7f), fontSize = ui(12f))
         Mood.EngineMoods.forEach { em ->
             val selected = em.id == engineId
             Button(
