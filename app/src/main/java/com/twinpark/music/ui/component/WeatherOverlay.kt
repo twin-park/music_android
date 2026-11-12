@@ -83,7 +83,7 @@ private fun hash01(i: Int, k: Int): Float {
 }
 
 private const val SNOW_COUNT = 110
-private const val DROP_COUNT = 10
+private const val DROP_COUNT = 9
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSnow(t: Double, w: Float, h: Float, density: Float) {
     for (i in 0 until SNOW_COUNT) {
@@ -100,8 +100,11 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSnow(t: Double,
 }
 
 /**
- * 비: 창문 유리에서 **천천히 흘러내리는 물방울**. 맺힌 방울은 장면 이미지(Figma)가 그리고, 여기서는 몇 개만 흘러내린다.
- * 방울은 뒤 장면 사진을 뒤집어 확대해 비추는 렌즈처럼 그려서(실제 물방울이 하는 굴절) 시안의 물방울과 같은 느낌을 낸다.
+ * 비: 창문 유리에서 천천히 흘러내리는 물방울(Figma 비 오는 날 시안). 맺힌 방울은 장면 이미지가 그리고, 여기서는 몇 개만 흘러내린다.
+ *
+ * - 모양: 위가 뾰족한 눈물방울. 안쪽은 뒤 장면 사진을 180도 돌려 키워 비추는 렌즈(굴절)다.
+ * - 움직임: 계속 흐르지 않고 멈췄다 흐르기를 반복한다(속도가 sin^2 모양). 방울마다 주기가 다르다.
+ * - 길: 곧게가 아니라 구불구불한 길을 따라 내려가고, 지나온 길에 가는 물자국이 남는다(끝으로 갈수록 옅다).
  * [base]는 장면 배경 사진이고, 장면과 같은 방식(덮도록 자르고 [SCENE_ZOOM]배)으로 놓아야 방울 속 그림이 뒤와 이어진다.
  */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRain(
@@ -113,38 +116,62 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRain(
     val dst = androidx.compose.ui.unit.IntOffset(((w - dw) / 2f).toInt(), ((h - dh) / 2f).toInt())
     val dstSize = androidx.compose.ui.unit.IntSize(dw.toInt(), dh.toInt())
     for (i in 0 until DROP_COUNT) {
-        val r = (9f + 11f * hash01(i, 0)) * density                    // 반지름 9~20dp
-        val x = (0.04f + 0.92f * hash01(i, 1)) * w
-        val speed = (9f + 14f * hash01(i, 2)) * density                // 초당 9~23dp: 천천히
-        val cycle = h + 4f * r
-        val y = ((hash01(i, 3) * cycle + t * speed) % cycle).toFloat() - 2f * r
-        val c = Offset(x, y)
-        // 지나온 자리에 남는 가는 물자국
-        val trail = (60f + 120f * hash01(i, 4)) * density
-        drawLine(Color.White.copy(alpha = 0.07f), Offset(x, y - trail), Offset(x, y), strokeWidth = r * 0.42f, cap = StrokeCap.Round)
-        // 방울 몸통: 뒤 장면을 180도 돌려 키워 비추는 렌즈
-        val circle = androidx.compose.ui.graphics.Path().apply { addOval(androidx.compose.ui.geometry.Rect(c, r)) }
-        clipPath(circle) {
-            withTransform({
-                scale(-LENS_ZOOM, -LENS_ZOOM, pivot = c)
-            }) {
+        val r = (13f + 10f * hash01(i, 0)) * density                    // 몸통 반지름 13~23dp
+        val x0 = (0.06f + 0.88f * hash01(i, 1)) * w
+        val amp = (6f + 14f * hash01(i, 2)) * density                   // 길의 좌우 흔들림
+        val freq = (0.010f + 0.012f * hash01(i, 3)) / density           // 길이 굽이치는 정도
+        val ph = hash01(i, 4) * 6.2832f
+        val peak = (28f + 40f * hash01(i, 5)) * density                 // 흐를 때의 빠르기(최대 초당 28~68dp)
+        val wv = 0.5 + 0.7 * hash01(i, 6)                               // 멈췄다 흐르는 주기 조절(각속도)
+        val cycle = h + 6f * r + 200f * density
+        // 속도 = peak * sin^2(wv * u): 적분하면 거리 = peak * (u/2 - sin(2 wv u) / (4 wv))
+        val u = t + hash01(i, 7) * 40.0
+        val dist = peak * (u / 2.0 - kotlin.math.sin(2.0 * wv * u) / (4.0 * wv))
+        val yy = ((hash01(i, 8) * cycle + dist) % cycle).toFloat() - 3f * r
+        fun px(y: Float) = x0 + amp * sin(y * freq + ph)               // 길 위 한 점의 x
+
+        // 지나온 길의 물자국: 위로 갈수록 옅고 가늘어진다
+        val trailLen = (110f + 170f * hash01(i, 9)) * density
+        val seg = 14
+        var prev = Offset(px(yy - r), yy - r)
+        for (k in 1..seg) {
+            val f = k / seg.toFloat()
+            val y = yy - r - trailLen * f
+            val cur = Offset(px(y), y)
+            drawLine(
+                Color.White.copy(alpha = 0.10f * (1f - f)), prev, cur,
+                strokeWidth = r * 0.34f * (1f - 0.7f * f), cap = StrokeCap.Round,
+            )
+            prev = cur
+        }
+
+        // 방울 몸통: 위가 뾰족한 눈물방울
+        val cx = px(yy)
+        val c = Offset(cx, yy)
+        val drop = androidx.compose.ui.graphics.Path().apply {
+            moveTo(cx, yy - 2.1f * r)
+            cubicTo(cx + 0.15f * r, yy - 1.25f * r, cx + r, yy - 0.95f * r, cx + r, yy + 0.1f * r)
+            cubicTo(cx + r, yy + 0.72f * r, cx + 0.55f * r, yy + r, cx, yy + r)
+            cubicTo(cx - 0.55f * r, yy + r, cx - r, yy + 0.72f * r, cx - r, yy + 0.1f * r)
+            cubicTo(cx - r, yy - 0.95f * r, cx - 0.15f * r, yy - 1.25f * r, cx, yy - 2.1f * r)
+            close()
+        }
+        clipPath(drop) {
+            withTransform({ scale(-LENS_ZOOM, -LENS_ZOOM, pivot = c) }) {
                 drawImage(base, dstOffset = dst, dstSize = dstSize, filterQuality = androidx.compose.ui.graphics.FilterQuality.Medium)
             }
             // 가장자리는 어둡게, 안쪽은 살짝 밝게
             drawCircle(
                 androidx.compose.ui.graphics.Brush.radialGradient(
-                    colors = listOf(Color(0x14FFFFFF), Color(0x00000000), Color(0x66000000)),
-                    center = c, radius = r,
+                    colors = listOf(Color(0x22FFFFFF), Color(0x00000000), Color(0x38000000)),
+                    center = c, radius = r * 1.1f,
                 ),
-                radius = r, center = c,
+                radius = r * 1.6f, center = Offset(cx, yy - 0.3f * r),
             )
         }
-        // 위쪽 작은 하이라이트와 아래쪽 가장자리 반사
-        drawCircle(Color.White.copy(alpha = 0.55f), radius = r * 0.2f, center = Offset(x - r * 0.35f, y - r * 0.4f))
-        drawCircle(
-            Color.White.copy(alpha = 0.18f), radius = r * 0.82f, center = Offset(x + r * 0.05f, y + r * 0.1f),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = r * 0.12f),
-        )
+        // 테두리, 위쪽 하이라이트, 아래쪽 가장자리 반사
+        drawPath(drop, Color.Black.copy(alpha = 0.18f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.2f * density))
+        drawCircle(Color.White.copy(alpha = 0.5f), radius = r * 0.16f, center = Offset(cx - r * 0.4f, yy - r * 0.2f))
     }
 }
 
