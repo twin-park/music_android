@@ -43,4 +43,10 @@ class WeatherStateTest {
         assertEquals(3, WeatherState(TimeOfDay.DUSK).scene().orbPose)   // 주황 황혼
         assertEquals(4, WeatherState(TimeOfDay.DAY).scene().orbPose)    // 청량 낮
     }
+
+    @Test fun 눈이_오면_눈_장면이_비보다_우선() {
+        TimeOfDay.values().forEach { assertEquals(Mood.Snow, WeatherState(it, snowing = true).scene()) }
+        assertEquals(Mood.Snow, WeatherState(TimeOfDay.DAY, raining = true, snowing = true).scene())
+        assertEquals(5, WeatherState(TimeOfDay.NIGHT, snowing = true).scene().orbPose)
+    }
 }

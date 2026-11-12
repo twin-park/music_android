@@ -39,7 +39,7 @@ data class Mood(
     /** 구름의 짙기 배율 (밤은 성기게) */
     val cloudDensity: Float,
     /**
-     * 이 분위기에 대응하는 오브 시안(포즈) 번호. 0 초록(20%), 1 보라(30%), 2 파랑(50%), 3 주황(70%), 4 하늘/노랑(90%).
+     * 이 분위기에 대응하는 오브 시안(포즈) 번호. 0 초록(20%), 1 보라(30%), 2 파랑(50%), 3 주황(70%), 4 하늘/노랑(90%), 5 구리빛(눈 오는 밤).
      * 순서는 `OrbPoses`와 `assets/orb_poses.bin`의 포즈 순서와 같다.
      */
     val orbPose: Int,
@@ -167,6 +167,28 @@ data class Mood(
             engineIds = listOf("바닷가보사노바"),
         )
 
+        /** 눈 오는 밤: 구리빛 구, 하늘은 짙은 갈색 (Figma 18:589). 음악이 아니라 날씨(눈)가 고르므로 엔진 분위기는 없다. */
+        val Snow = Mood(
+            label = "눈 오는 밤",
+            amplitude = 0.22f,
+            speed = 0.35f,
+            base = Color(0xFF3E2A22),
+            mid = Color(0xFFF57512),
+            peak = Color(0xFFFFBD4D),
+            // Figma 18:589: 배경 (64,43,41) 짙은 갈색
+            sky = listOf(
+                Color(0xFF5A4440), Color(0xFF4B3835), Color(0xFF3C2D2B), Color(0xFF2E2322), Color(0xFF221A19),
+            ),
+            glow = Color(0xFF8A6A5E),
+            cloudLit = Color(0xFFB89A8C),
+            cloudShade = Color(0xFF2A1F1E),
+            cloudWarm = Color(0xFF7A5446),
+            cloudDensity = 0.6f,
+            orbPose = 5,
+            weather = Weather(90, 80, 3, 0),
+            engineIds = emptyList(),
+        )
+
         /** 엔진 분위기 9개를 사용자에게 보이는 순서로 나열한다. ("분위기 바꾸기"가 이 순서로 돈다) */
         val EngineMoods = listOf(
             EngineMood("비오는날", "비 오는 날"), EngineMood("평온한재즈", "평온한 재즈"), EngineMood("밤드라이브", "밤 드라이브"),
@@ -179,6 +201,6 @@ data class Mood(
         fun forEngine(engineId: String?): Mood = Presets.firstOrNull { engineId in it.engineIds } ?: Calm
 
         /** 시안(오브 포즈) 순서대로 나열한다. */
-        val Presets = listOf(Fresh, Sleep, Calm, Energetic, Bright)
+        val Presets = listOf(Fresh, Sleep, Calm, Energetic, Bright, Snow)
     }
 }

@@ -361,9 +361,10 @@ private fun DevControls(
         }
         chip("자동", manual == null) { WeatherSource.setManual(null) }
         TimeOfDay.values().forEach { t ->
-            chip(t.label, manual?.time == t && manual?.raining != true) { WeatherSource.setManual(WeatherState(t, raining = false)) }
+            chip(t.label, manual?.time == t && manual?.raining != true && manual?.snowing != true) { WeatherSource.setManual(WeatherState(t, raining = false)) }
         }
-        chip("비", manual?.raining == true) { WeatherSource.setManual(WeatherState(manual?.time ?: TimeOfDay.now(), raining = true)) }
+        chip("비", manual?.raining == true && manual?.snowing != true) { WeatherSource.setManual(WeatherState(manual?.time ?: TimeOfDay.now(), raining = true)) }
+        chip("눈", manual?.snowing == true) { WeatherSource.setManual(WeatherState(manual?.time ?: TimeOfDay.now(), snowing = true)) }
     }
     Row(
         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),

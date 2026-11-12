@@ -21,13 +21,14 @@ enum class TimeOfDay(val label: String) {
     }
 }
 
-/** 바깥 날씨 입력. 지금은 시간대와 비 여부만 본다. */
-data class WeatherState(val time: TimeOfDay, val raining: Boolean = false) {
+/** 바깥 날씨 입력. 지금은 시간대, 비, 눈 여부만 본다. */
+data class WeatherState(val time: TimeOfDay, val raining: Boolean = false, val snowing: Boolean = false) {
     /**
-     * 이 날씨에 맞는 장면(오브 + 하늘). 비가 오면 시간대와 상관없이 비 장면(파랑),
-     * 아니면 새벽 초록, 낮 청량, 황혼 주황, 밤 보라.
+     * 이 날씨에 맞는 장면(오브 + 하늘). 눈이 오면 시간대와 상관없이 눈 오는 밤(구리빛), 비가 오면 비 장면(파랑),
+     * 아니면 새벽 초록, 낮 청량, 황혼 주황, 밤 보라. 눈이 비보다 우선한다.
      */
     fun scene(): Mood = when {
+        snowing -> Mood.Snow
         raining -> Mood.Calm
         else -> when (time) {
             TimeOfDay.DAWN -> Mood.Fresh
