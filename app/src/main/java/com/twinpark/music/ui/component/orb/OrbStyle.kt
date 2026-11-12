@@ -57,8 +57,8 @@ private class SphereOrb(
 
 /** 판이 겹치는 모양(보라, 청량, 눈 오는 밤): 구보다 빠르게 흐르고 흔들림도 큰 판이 많다. */
 private class FoldOrb(
-    pose: Int, beadScale: Float, depthDim: Float, edgeGrow: Float, rimFloor: Float, colors: Triple<Color, Color, Color>, flow: Float,
-) : BaseOrb(pose, beadScale, depthDim, edgeGrow, rimFloor, colors, flowRate = flow)
+    pose: Int, beadScale: Float, depthDim: Float, edgeGrow: Float, rimFloor: Float, colors: Triple<Color, Color, Color>, flow: Float, sway: Float = 1f,
+) : BaseOrb(pose, beadScale, depthDim, edgeGrow, rimFloor, colors, flowRate = flow, swayAmount = sway)
 
 /** 오브 6종. 순서가 포즈 번호다. */
 object OrbStyles {
@@ -74,6 +74,6 @@ object OrbStyles {
         // 4 청량 (90%, 낮): 하늘색 바탕에 흰 구슬, 윗면은 노랑. 구슬마다 시안 색을 읽어 0(파랑) 0.5(흰색) 1(노랑)로 넣는다.
         FoldOrb(4, 1.75f, 0.78f, 0f, 0.85f, Triple(Color(0.20f, 0.62f, 0.98f), Color(0.96f, 0.98f, 1.00f), Color(1.00f, 0.88f, 0.40f)), flow = 0.8f),
         // 5 눈 오는 밤 (Figma 18:589): 짙은 갈색 구슬에서 구리빛 주황을 거쳐 능선은 밝은 노랑 주황
-        FoldOrb(5, 1.45f, 0.80f, 0f, 0.78f, Triple(Color(0.62f, 0.24f, 0.06f), Color(0.96f, 0.46f, 0.07f), Color(1.00f, 0.74f, 0.30f)), flow = 0.7f),
+        FoldOrb(5, 1.45f, 0.80f, 0f, 0.78f, Triple(Color(0.62f, 0.24f, 0.06f), Color(0.96f, 0.46f, 0.07f), Color(1.00f, 0.74f, 0.30f)), flow = 1.0f, sway = 1.6f),
     )
 }

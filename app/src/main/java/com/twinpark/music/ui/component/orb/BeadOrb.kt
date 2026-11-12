@@ -173,6 +173,8 @@ fun BeadOrb(
             var sm = 0f
             for (m in 0 until na) sm += actW[m] * sizeP[m]!![i]
             sizeMul[i] = sm
+            // 크기가 거의 0인 점은 이 오브에 없는 구슬(개수가 모자라 채운 칸)이라 위치 계산도, 그리기도 건너뛴다
+            if (sm < MIN_BEAD_SIZE) { ids[i] = -1; continue }
             var x = 0f
             var y = 0f
             var z = 0f
@@ -203,6 +205,7 @@ fun BeadOrb(
             counts[id + 1]++
         }
         for (b in 0 until BUCKETS) counts[b + 1] += counts[b]
+        val valid = counts[BUCKETS]                   // 실제로 그릴 구슬 수
         val cursor = buffers.cursor
         System.arraycopy(counts, 0, cursor, 0, BUCKETS)
 
@@ -251,6 +254,7 @@ fun BeadOrb(
         val colorChunks = buffers.colorChunks
         for (i in 0 until n) {
             val id = ids[i]
+            if (id < 0) continue
             val c = cursor[id]++
             val ch = c / CHUNK
             val l = c - ch * CHUNK
@@ -271,7 +275,7 @@ fun BeadOrb(
         drawIntoCanvas { canvas ->
             val native = canvas.nativeCanvas
             for (ch in vertChunks.indices) {
-                val quads = min(CHUNK, n - ch * CHUNK)
+                val quads = min(CHUNK, valid - ch * CHUNK)
                 if (quads <= 0) break
                 drawBeads(native, buffers, ch, quads, paint)
             }
@@ -308,6 +312,9 @@ private const val DEPTH_HALF = 1.45f
  */
 private const val BEAD_DIAMETER = 0.0195f
 
+/** 이보다 작은 구슬 크기 배율은 "없는 구슬"로 본다(오브마다 구슬 수가 달라 모자라는 칸을 크기 0으로 채운다). */
+private const val MIN_BEAD_SIZE = 0.02f
+
 /** 초당 키프레임 이동량의 공통 배율. 오브마다의 속도는 [OrbStyle.flowRate]가 정한다(구 0.5, 판형 0.7~0.9). 키프레임이 8개라 0.5이면 한 바퀴 약 16초, 0.9이면 약 9초. */
 private const val FLOW_RATE = 1.0f
 
@@ -324,7 +331,10 @@ private val RIM_BIN = IntArray(RIM_TABLE) { i ->
 }
 
 private const val CHUNK = 15000
-private const val SPRITE_SIZE = 16
+private const val SPRITE_SIZE = 24
+
+/** 스프라이트 가장자리 번짐 폭(반지름 대비). 클수록 부드럽고 작은 구슬이 매끈하며, 작을수록 선명하고 크게 키워도 흐려지지 않는다. */
+private const val SPRITE_EDGE = 0.18f
 
 /** 구슬 음영의 가장 어두운 곳 밝기(0..1). 낮출수록 입체감이 커지고 전체가 어두워진다. */
 private const val BEAD_SHADE_BASE = 0.84f
@@ -382,7 +392,7 @@ private fun beadSprite(): Bitmap {
     for (y in 0 until size) {
         for (x in 0 until size) {
             val d = kotlin.math.hypot(x + 0.5f - c, y + 0.5f - c) / c // 0 중심, 1 가장자리
-            val t = ((1f - d) / 0.45f).coerceIn(0f, 1f)
+            val t = ((1f - d) / SPRITE_EDGE).coerceIn(0f, 1f)
             val a = t * t * (3f - 2f * t)
             // 구체 음영: 왼쪽 위에서 빛이 오고(diffuse), 작은 하이라이트(spec)가 얹힌다. 색은 정점 색이 곱해진다.
             val nx = (x + 0.5f - c) / c
