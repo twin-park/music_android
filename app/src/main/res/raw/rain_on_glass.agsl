@@ -1,5 +1,6 @@
 // 창문 빗방울 셰이더(직접 작성).
 // - 큰 방울: 열마다 하나씩, 오래 멈췄다가 갑자기 쭉 흐른다(속도 sin^4). 흐를 때는 길게 늘어나고 멈추면 둥글어진다.
+//   길의 기울기를 따라 방울이 기울고, 흐르는 동안 폭이 출렁인다.
 //   길은 곧은 사인파가 아니라 두 파장을 섞어 불규칙하게 흔들린다. 지나온 길에 젖은 자국이 남는다.
 // - 작은 방울: 큰 방울이 지나간 길에 불규칙한 간격으로 뭉쳐서 남는다.
 // - 이슬: 아주 작은 방울이 칸마다 천천히 맺혔다 사라진다.
@@ -105,8 +106,14 @@ void layer(inout half4 acc, float2 p, float s, float seed) {
             float fade = 1.0 - clamp(((c.y - by) - 2.0 * r) / trailLen, 0.0, 1.0);
             drop(acc, p, float2(bx, by), br, roundMask(p - float2(bx, by), br), fade);
         }
-        // 큰 방울(눈물방울)
-        drop(acc, p, c, r, tearMask(p - c, r, tail), 1.0);
+        // 큰 방울(눈물방울): 길의 기울기를 따라 꼬리가 길 쪽으로 기울고, 흐르는 동안 폭이 출렁인다
+        float slope = clamp((pathX(x0, amp, freq, ph, y + 4.0) - pathX(x0, amp, freq, ph, y - 4.0)) / 8.0, -1.0, 1.0);
+        float ca = inversesqrt(1.0 + slope * slope);
+        float sa = slope * ca;
+        float2 dd = p - c;
+        float2 dr = float2(dd.x * ca - dd.y * sa, dd.x * sa + dd.y * ca);   // (sin a, cos a) 방향(길)을 아래쪽 축으로
+        dr.x *= 1.0 + 0.12 * sn * sin(time * 11.0 + ph * 3.0);               // 흐를 때 가로로 출렁임
+        drop(acc, p, c, r, tearMask(dr, r, tail), 1.0);
     }
 }
 
