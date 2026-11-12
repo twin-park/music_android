@@ -5,6 +5,7 @@ import android.content.pm.ApplicationInfo
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -46,6 +48,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
@@ -66,7 +72,10 @@ import com.twinpark.music.domain.TrackerState
 import com.twinpark.music.domain.Weather
 import com.twinpark.music.ui.component.CloudKnob
 import com.twinpark.music.ui.component.Precipitation
+import com.twinpark.music.ui.component.SceneArt
 import com.twinpark.music.ui.component.WeatherOverlay
+import com.twinpark.music.ui.component.rememberWeatherClock
+import com.twinpark.music.ui.component.drawPrecipitation
 import com.twinpark.music.ui.component.orb.BeadOrb
 
 /**
@@ -94,6 +103,11 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     var sensed by remember { mutableStateOf(emptySet<String>()) }        // 디버그: 귀가 들은 것으로 치는 단어들
     val situation by SituationDirector.state.collectAsState()
     var reduced by remember { mutableStateOf(false) }
+    val sceneLayer = androidx.compose.ui.graphics.rememberGraphicsLayer()
+    val precipitation = when { weatherNow.snowing -> Precipitation.Snow; weatherNow.raining -> Precipitation.Rain; else -> Precipitation.None }
+    val rainBase = androidx.compose.ui.graphics.ImageBitmap.imageResource(com.twinpark.music.R.drawable.scene_rain_base)
+    val lensBase = if (precipitation == Precipitation.Rain) rainBase else null
+    val weatherClock = rememberWeatherClock(active = !reduced && precipitation != Precipitation.None)
     var volume by rememberSaveable { mutableFloatStateOf(0.7f) }
 
     // 배경음악: 엔진은 포그라운드 서비스가 쥐고 있어서 화면을 닫아도 계속 연주한다. 화면은 상태를 보여 주고 요청만 보낸다.
@@ -128,13 +142,17 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     ) {
         val landscape = maxWidth > maxHeight
 
-        val knob: @Composable (Modifier) -> Unit = { m ->
+        val knob: @Composable (Modifier, androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp) -> Unit = { m, corner, endInset ->
             Box(m) {
                 CloudKnob(
                     volume = volume,
                     onVolumeChange = { volume = it },
                     mood = mood,
                     reducedMotion = reduced,
+                    cornerRadius = corner,
+                    endInset = endInset,
+                    scene = SceneArt.forKey(mood.sceneKey),
+                    sceneLayer = sceneLayer,
                     modifier = Modifier.fillMaxSize(),
                 )
                 // 시안의 좌상단 브랜드 표기 (시안 글자는 HTUNDAI로 적혀 있으나 오타로 보고 HYUNDAI로 쓴다)
@@ -171,23 +189,44 @@ fun MusicScreen(modifier: Modifier = Modifier) {
         val uiScale = (shortSide / 700.dp).coerceIn(1f, 1.7f)
         CompositionLocalProvider(LocalUiScale provides uiScale) {
             if (landscape) {
-                Row(Modifier.fillMaxSize().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // Figma 시안 비율: 구름 영역 약 55%, 오른쪽 오브 영역 약 45%
-                    knob(Modifier.weight(0.55f).fillMaxHeight())
-                    orb(Modifier.weight(0.45f).fillMaxHeight())
+                // Figma 시안: 장면(하늘, 구름)이 화면 거의 전체에 깔리고, 오른쪽 패널은 그 위에 흐린 반투명 유리로 겹친다.
+                // 노브는 왼쪽 영역에서만 움직인다(endInset).
+                val panelW = maxWidth * 0.42f
+                val density = androidx.compose.ui.platform.LocalDensity.current
+                val sceneW = with(density) { maxWidth.toPx() }
+                Box(Modifier.fillMaxSize()) {
+                    knob(Modifier.fillMaxSize(), 0.dp, panelW)
+                    // 눈: 장면 위, 패널 아래. 패널 뒤에서는 아래 흐림 레이어가 같은 입자를 같은 자리에 다시 그려 같이 흐려진다.
+                    WeatherOverlay(precipitation, clockNs = { weatherClock.value }, enabled = !reduced, lensBase = lensBase)
+                    // 오른쪽 패널: 장면을 같은 자리에서 다시 그려 실제로 흐리게 하고(Figma의 흐린 반투명 유리), 그 위에 옅게 어둡힌다.
+                    Box(Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(panelW)) {
+                        Canvas(
+                            Modifier.fillMaxSize().graphicsLayer {
+                                clip = true
+                                if (android.os.Build.VERSION.SDK_INT >= 31) {
+                                    renderEffect = androidx.compose.ui.graphics.BlurEffect(36f, 36f, androidx.compose.ui.graphics.TileMode.Clamp)
+                                }
+                            },
+                        ) {
+                            translate(left = -(sceneW - size.width)) {
+                                drawLayer(sceneLayer)
+                                if (!reduced) drawPrecipitation(precipitation, weatherClock.value / 1_000_000_000.0, sceneW, size.height, density.density, lensBase)
+                            }
+                        }
+                        Box(Modifier.fillMaxSize().background(Color(0x55101820)).border(BorderStroke(1.dp, Color(0x22FFFFFF))))
+                        orb(Modifier.fillMaxSize().padding(16.dp))
+                    }
                 }
             } else {
                 Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     orb(Modifier.weight(1.35f).fillMaxWidth())
-                    knob(Modifier.weight(0.65f).fillMaxWidth())
+                    Box(Modifier.weight(0.65f).fillMaxWidth()) {
+                        knob(Modifier.fillMaxSize(), 28.dp, 0.dp)
+                        WeatherOverlay(precipitation, clockNs = { weatherClock.value }, enabled = !reduced, lensBase = lensBase)
+                    }
                 }
             }
         }
-        // 날씨 배경: 눈과 비가 화면 전체에 천천히 내린다(터치는 그대로 통과한다). 저모션(주행 규제)에서는 끈다.
-        WeatherOverlay(
-            precipitation = when { weatherNow.snowing -> Precipitation.Snow; weatherNow.raining -> Precipitation.Rain; else -> Precipitation.None },
-            enabled = !reduced,
-        )
     }
 }
 
@@ -220,24 +259,37 @@ private fun OrbPanel(
         val topGap = if (!compact && maxHeight >= 700.dp) maxHeight * 0.08f else 0.dp
         val barH = maxOf(topGap, ((if (compact) 36 else 48) * LocalUiScale.current).dp)
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp)) {
-            Row(Modifier.fillMaxWidth().height(barH), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().height(barH), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val btnH = ((if (compact) 36 else 48) * LocalUiScale.current).dp
+                val btnPad = if (compact) PaddingValues(horizontal = 12.dp, vertical = 2.dp) else ButtonDefaults.ContentPadding
+                // Figma 시안: END, CHANGE THE MOOD 두 버튼이 패널 맨 위에 나란히 있다(운전 중 누르기 쉽도록 큰 터치 영역).
                 OutlinedButton(
                     onClick = {
                         onEnd()
                         (context as? Activity)?.finish()      // 화면은 바로 닫고, 연주는 서비스가 곡을 마무리한 뒤 끝낸다
                     },
-                    modifier = Modifier.height(((if (compact) 36 else 48) * LocalUiScale.current).dp).widthIn(min = (96 * LocalUiScale.current).dp),
-                    contentPadding = if (compact) PaddingValues(horizontal = 12.dp, vertical = 2.dp) else ButtonDefaults.ContentPadding,
+                    modifier = Modifier.weight(1f).height(btnH),
+                    contentPadding = btnPad,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0x99FFFFFF)),
+                    border = BorderStroke(1.dp, Color(0xCCFFFFFF)),
                 ) { Text("끝내기", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
-                Spacer(Modifier.weight(1f))
+                OutlinedButton(
+                    onClick = {
+                        val list = Mood.EngineMoods
+                        val at = list.indexOfFirst { it.id == engineId }
+                        onEngineChange(list[(at + 1) % list.size].id)
+                    },
+                    modifier = Modifier.weight(1f).height(btnH),
+                    contentPadding = btnPad,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                    border = BorderStroke(1.dp, Color(0xCCFFFFFF)),
+                ) { Text("분위기 바꾸기", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
                 if (debuggable) {
                     TextButton(
                         onClick = { devOpen = !devOpen },
                         modifier = Modifier.height(28.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                    ) { Text(if (devOpen) "DEV 닫기" else "DEV", color = Color(0xFF7DD3FC), fontSize = ui(12f)) }
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                    ) { Text(if (devOpen) "닫기" else "DEV", color = Color(0xFF7DD3FC), fontSize = ui(12f)) }
                 }
             }
             // 제목: 위 가로선 + "AI가 연주중"
@@ -265,19 +317,6 @@ private fun OrbPanel(
                 modifier = Modifier.weight(1f).fillMaxWidth().heightIn(min = 90.dp),
             )
             WeatherDetail(mood.weather, compact)
-            run {
-                val btnPad = if (compact) PaddingValues(horizontal = 12.dp, vertical = 2.dp) else ButtonDefaults.ContentPadding
-                Button(
-                    onClick = {
-                        val list = Mood.EngineMoods
-                        val at = list.indexOfFirst { it.id == engineId }
-                        onEngineChange(list[(at + 1) % list.size].id)
-                    },
-                    modifier = Modifier.fillMaxWidth().height(((if (compact) 36 else 44) * LocalUiScale.current).dp),
-                    contentPadding = btnPad,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
-                ) { Text("분위기 바꾸기", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
-            }
         }
         // 개발용(디버그 빌드만): 접어 두었다가 펼치면 패널 위에 겹쳐 보인다. 오브 자리를 빼앗지 않는다.
         if (debuggable) {
