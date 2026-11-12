@@ -52,6 +52,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -81,7 +82,7 @@ import kotlin.math.sin
  * - 영역 어디를 눌러도 노브가 그 자리로 오고, 그대로 끌 수 있다. (한 손, 시선 최소화)
  * - 구름은 노브 위치에 따라 천천히 밀려난다. (스케치의 "구름을 움직이는 연출")
  * - 5% 단위로 햅틱 피드백을 준다.
- * - Pleos UI 가이드의 Stepper(+/- 버튼)를 보조 수단으로 함께 둔다. 접근성 setProgress도 지원한다.
+ * - 접근성 setProgress(음량 올리기, 내리기)를 지원한다. (+/- 버튼은 노브를 직접 끌어 조절하므로 뺐다)
  *
  * [volume]은 0..1이다. 외부에서 값이 바뀌면(버튼, 음성) 노브가 현재 방향을 유지한 채 거리만 바뀐다.
  *
@@ -122,11 +123,8 @@ fun CloudKnob(
     val knobSize = with(density) { knobPx.toDp() }
     val unitScale = with(density) { travelPx.toDp() } / MIN_KNOB   // 버튼과 간격의 배율(노브가 움직이는 범위 기준)
     val textScale = knobSize / MIN_KNOB                          // 퍼센트 글자는 그려진 노브 크기에 맞춘다
-    val stepperSize = STEPPER_SIZE * unitScale
-    val stepperMargin = STEPPER_MARGIN * unitScale
-    val stepperHalfWidth = stepperSize + 8.dp * unitScale               // -, + 두 버튼과 사이 간격(16dp)의 절반
-    // 아래쪽 −/+ 버튼 자리. 노브는 이 자리를 뺀 윗부분에서만 움직여 버튼과 겹치지 않는다.
-    val reservedPx = with(density) { (stepperSize + stepperMargin * 2).toPx() }
+    // 아래쪽 여백. 노브가 화면 맨 아래 가장자리에 붙지 않게 한다.
+    val reservedPx = with(density) { (EDGE_MARGIN * unitScale * 2).toPx() }
 
     /** 노브 위치. 영역 반쪽 크기를 1로 한 정규화 좌표이고, 길이(0..1)가 음량이다. */
     var pos by remember { mutableStateOf(withLength(DEFAULT_DIRECTION, volume)) }
@@ -226,7 +224,9 @@ fun CloudKnob(
             val t = cloudTick.value / CLOUD_HZ.toFloat()
             if (sceneBase != null) {
                 // Figma 장면 이미지: 화면을 덮도록 자르고(Crop), 아주 천천히 흔들려 움직이는 이미지로 보이게 한다.
-                val drift = 0f                       // 장면 사진은 고정: 그 위의 물방울 렌즈가 어긋나지 않게 한다
+                // 물방울 렌즈가 얹히는 장면(비)은 고정해 렌즈가 어긋나지 않게 하고, 나머지는 아주 천천히 좌우로 흘러 구름이 움직이는 느낌을 준다.
+                // 약 63초에 한 번 왕복하고, 이동 폭은 화면 폭의 1.8%(확대 SCENE_ZOOM 안쪽이라 가장자리가 비지 않는다).
+                val drift = if (sceneOverlay == null && !reducedMotion) sin(t * SCENE_DRIFT_SPEED) * SCENE_DRIFT_AMOUNT * w else 0f
                 drawSceneImage(sceneBase, w, h, SCENE_ZOOM, drift, 1f, overlay = sceneOverlay, overlayAlpha = scene.overlayAlpha)
                 return@record
             }
@@ -397,20 +397,6 @@ fun CloudKnob(
             )
         }
 
-        // 보조 조작: Pleos UI 가이드의 Stepper
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(bottom = stepperMargin, start = (with(density) { (fieldW / 2f).toDp() } - stepperHalfWidth).coerceAtLeast(0.dp)),
-            horizontalArrangement = Arrangement.spacedBy(16.dp * unitScale),
-        ) {
-            StepButton(label = "−", description = "음량 줄이기", size = stepperSize, unitScale = unitScale) {
-                latestOnChange((volume - STEP_SIZE).coerceIn(0f, 1f))
-            }
-            StepButton(label = "+", description = "음량 높이기", size = stepperSize, unitScale = unitScale) {
-                latestOnChange((volume + STEP_SIZE).coerceIn(0f, 1f))
-            }
-        }
     }
 }
 
@@ -450,31 +436,7 @@ private const val KNOB_HEIGHT_RATIO = 0.40f
 private const val KNOB_RATIO_AT_20 = 0.12f
 private const val KNOB_RATIO_SLOPE = 0.357f
 private const val KNOB_MAX_HEIGHT_RATIO = 0.42f
-private val STEPPER_SIZE = 64.dp
-private val STEPPER_MARGIN = 16.dp
-
-@Composable
-private fun StepButton(label: String, description: String, size: Dp, unitScale: Float, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(size)
-            .clip(CircleShape)
-            .background(
-                Brush.linearGradient(
-                    listOf(Color.White.copy(alpha = 0.26f), Color(0xFF0C1240).copy(alpha = 0.22f), Color.White.copy(alpha = 0.10f)),
-                ),
-            )
-            .border(
-                1.5.dp,
-                Brush.linearGradient(listOf(Color.White.copy(alpha = 0.95f), Color.White.copy(alpha = 0.2f), Color.White.copy(alpha = 0.6f))),
-                CircleShape,
-            )
-            .clickable(role = Role.Button, onClickLabel = description, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text = label, color = Color.White, fontSize = (30f * unitScale).sp)
-    }
-}
+private val EDGE_MARGIN = 16.dp
 
 private fun withLength(direction: Offset, length: Float): Offset {
     val d = direction.getDistance()
@@ -483,6 +445,10 @@ private fun withLength(direction: Offset, length: Float): Offset {
 }
 
 private const val CLOUD_HZ = 5
+/** 장면 이미지가 흐르는 속도(rad/s)와 이동 폭(화면 폭 비율). 0.1이면 약 63초에 한 번 왕복한다. */
+private const val SCENE_DRIFT_SPEED = 0.1f
+private const val SCENE_DRIFT_AMOUNT = 0.018f
+
 private const val STEPS = 20 // 5% 단위
 private const val STEP_SIZE = 0.05f
 private const val DRIFT_REDUCED = 0.0f
@@ -565,10 +531,13 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSceneImage(
     val scale = maxOf(w / img.width, h / img.height) * zoom
     val dw = img.width * scale
     val dh = img.height * scale
-    val off = androidx.compose.ui.unit.IntOffset(((w - dw) / 2f + dx).roundToInt(), ((h - dh) / 2f).roundToInt())
+    val off = androidx.compose.ui.unit.IntOffset(((w - dw) / 2f).roundToInt(), ((h - dh) / 2f).roundToInt())
     val size = androidx.compose.ui.unit.IntSize(dw.roundToInt(), dh.roundToInt())
-    drawImage(image = img, dstOffset = off, dstSize = size, alpha = alpha, filterQuality = androidx.compose.ui.graphics.FilterQuality.High)
-    if (overlay != null) {
-        drawImage(image = overlay, dstOffset = off, dstSize = size, alpha = overlayAlpha, filterQuality = androidx.compose.ui.graphics.FilterQuality.High)
+    // 느린 이동이 한 픽셀씩 끊기지 않게 정수 오프셋 대신 변환(소수점 이동)으로 옮긴다
+    translate(left = dx) {
+        drawImage(image = img, dstOffset = off, dstSize = size, alpha = alpha, filterQuality = androidx.compose.ui.graphics.FilterQuality.High)
+        if (overlay != null) {
+            drawImage(image = overlay, dstOffset = off, dstSize = size, alpha = overlayAlpha, filterQuality = androidx.compose.ui.graphics.FilterQuality.High)
+        }
     }
 }

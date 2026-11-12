@@ -5,7 +5,7 @@ import com.twinpark.music.R
 
 /**
  * Figma 장면 이미지. [base]는 배경 사진, [overlay]는 그 위에 [overlayAlpha]로 얹는 투명 레이어(비 오는 날의 창문 물방울)다.
- * 이미지가 없는 분위기는 절차적 구름(CloudKnob)을 쓴다.
+ * 이미지가 없는 장면은 절차적 구름(CloudKnob)을 쓴다.
  */
 class SceneArt(
     @DrawableRes val base: Int,
@@ -21,6 +21,8 @@ class SceneArt(
             "night" -> SceneArt(R.drawable.scene_night)
             "dawn" -> SceneArt(R.drawable.scene_dawn)
             "snow" -> SceneArt(R.drawable.scene_snow)
+            // Figma 18:498(해질녘 하늘과 구름)
+            "dusk" -> SceneArt(R.drawable.scene_dusk)
             else -> null
         }
     }
