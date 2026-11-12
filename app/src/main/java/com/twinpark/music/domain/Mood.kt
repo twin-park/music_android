@@ -122,6 +122,7 @@ data class Mood(
             orbPose = 1,
             weather = Weather(20, 18, 4, 0),
             engineIds = listOf("아이재우기", "밤드라이브", "현악앙상블"),
+            sceneKey = "night",
         )
 
         // 아래 두 분위기의 이름은 임시다. 시안 20%, 90%가 어떤 음악 종류인지 확정되면 바꾼다.
@@ -146,6 +147,7 @@ data class Mood(
             orbPose = 0,
             weather = Weather(86, 42, 6, 0),
             engineIds = listOf("평온한재즈", "진정", "클래식왈츠"),
+            sceneKey = "dawn",
         )
 
         /** 청량: 시안 90% 하늘색과 노랑 (임시 이름) */
@@ -168,6 +170,7 @@ data class Mood(
             orbPose = 4,
             weather = Weather(20, 18, 4, 0),
             engineIds = listOf("바닷가보사노바"),
+            sceneKey = "day",
         )
 
         /** 눈 오는 밤: 구리빛 구, 하늘은 짙은 갈색 (Figma 18:589). 음악이 아니라 날씨(눈)가 고르므로 엔진 분위기는 없다. */
@@ -190,6 +193,7 @@ data class Mood(
             orbPose = 5,
             weather = Weather(90, 80, 3, 0),
             engineIds = emptyList(),
+            sceneKey = "snow",
         )
 
         /** 엔진 분위기 9개를 사용자에게 보이는 순서로 나열한다. ("분위기 바꾸기"가 이 순서로 돈다) */
