@@ -71,6 +71,7 @@ import com.twinpark.music.domain.WeatherState
 import com.twinpark.music.domain.TrackerState
 import com.twinpark.music.domain.Weather
 import com.twinpark.music.ui.component.CloudKnob
+import com.twinpark.music.ui.component.PianoRoll
 import com.twinpark.music.ui.component.Precipitation
 import com.twinpark.music.ui.component.SceneArt
 import com.twinpark.music.ui.component.WeatherOverlay
@@ -104,6 +105,7 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     val situation by SituationDirector.state.collectAsState()
     var reduced by remember { mutableStateOf(false) }
     val sceneLayer = androidx.compose.ui.graphics.rememberGraphicsLayer()
+    var pianoOn by remember { mutableStateOf(false) }               // 개발용: 오브 대신 피아노 화면(디자인에서 넣을지 미정)
     val precipitation = when { weatherNow.snowing -> Precipitation.Snow; weatherNow.raining -> Precipitation.Rain; else -> Precipitation.None }
     val rainBase = androidx.compose.ui.graphics.ImageBitmap.imageResource(com.twinpark.music.R.drawable.scene_rain_base)
     val lensBase = if (precipitation == Precipitation.Rain) rainBase else null
@@ -175,6 +177,8 @@ fun MusicScreen(modifier: Modifier = Modifier) {
                 situation = situation,
                 reduced = reduced,
                 onReducedChange = { reduced = it },
+                piano = pianoOn,
+                onPianoChange = { pianoOn = it },
                 bgmState = bgmState,
                 paused = bgmPaused,
                 status = status,
@@ -240,6 +244,8 @@ private fun OrbPanel(
     situation: TrackerState?,
     reduced: Boolean,
     onReducedChange: (Boolean) -> Unit,
+    piano: Boolean,
+    onPianoChange: (Boolean) -> Unit,
     bgmState: BgmState,
     paused: Boolean,
     status: BgmStatus?,
@@ -307,7 +313,10 @@ private fun OrbPanel(
                     maxLines = 1,
                 )
             }
-            BeadOrb(
+            if (piano) {
+                // 개발용 선택 화면: 반투명 건반과 내려오는 음(Figma 피아노 화면). 연주 중일 때만 음이 나온다.
+                PianoRoll(tint = mood.peak, modifier = Modifier.weight(1f).fillMaxWidth().heightIn(min = 90.dp))
+            } else BeadOrb(
                 // 오브 모양은 분위기(음악 종류)가 정한다. 분위기마다 Figma 시안 한 장이 대응한다.
                 pose = mood.orbPose,
                 speed = mood.speed,
@@ -324,7 +333,7 @@ private fun OrbPanel(
                 Box(
                     Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                         .background(Color(0xFF0B0F24), RoundedCornerShape(12.dp)).padding(8.dp),
-                ) { DevControls(engineId, onEngineChange, sensed, onSensedChange, situation, reduced, onReducedChange) }
+                ) { DevControls(engineId, onEngineChange, sensed, onSensedChange, situation, reduced, onReducedChange, piano, onPianoChange) }
             }
         }
     }
@@ -395,6 +404,8 @@ private fun DevControls(
     situation: TrackerState?,
     reduced: Boolean,
     onReducedChange: (Boolean) -> Unit,
+    piano: Boolean,
+    onPianoChange: (Boolean) -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
     // 날씨: 오브와 장면을 정한다. 자동이면 기기 시계(비 없음), 시간대나 비를 누르면 그 값으로 고정한다.
@@ -447,6 +458,14 @@ private fun DevControls(
                 contentColor = if (reduced) Color.Black else Color.White,
             ),
         ) { Text("저모션", fontSize = ui(12f), maxLines = 1) }
+        Button(
+            onClick = { onPianoChange(!piano) },
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (piano) Color(0xFF7DD3FC) else Color(0x33FFFFFF),
+                contentColor = if (piano) Color.Black else Color.White,
+            ),
+        ) { Text("피아노", fontSize = ui(12f), maxLines = 1) }
     }
     // 귀가 들은 것으로 칠 단어. 누른 단어가 2초마다 상황 판단에 들어가고, 같은 새 상황이 4초 이어지면 분위기가 바뀐다.
     Row(

@@ -28,4 +28,10 @@ internal object BgmNative {
 
     /** "분위기 이름|마디 역할|조|빠르기|끊김 횟수|연주중(0/1)" */
     external fun nativeStatus(): String
+
+    /** 피아노 화면용: 새로 알려진 음들. 값 하나는 (소리 프레임 shl 16) or (세기 shl 8) or 음 높이(MIDI). */
+    external fun nativeNotes(): LongArray
+
+    /** 소리 장치가 지금까지 읽어 간 소리 프레임 수(재생 위치). 음의 프레임과 같은 눈금이다. */
+    external fun nativePlayed(): Long
 }

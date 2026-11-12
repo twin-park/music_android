@@ -37,6 +37,12 @@ struct Player {
     std::atomic<long> underruns{0};
     std::atomic<float> env{0.f};          // 소리 장치로 나가는 소리 크기(0..1): 빠르게 올라가고 천천히 내려감
     std::atomic<float> beat{0.f};         // 박자 신호(0..1): 음이 시작되는 순간 튀고 0.16초 안팎으로 가라앉음(킥이 가장 크다)
+    // 피아노 화면용 음 알림: 엔진이 미리 만들어 둔 음(아직 재생 위치에 닿기 전)을 알려 주어 화면에서 건반으로 내려오게 한다.
+    // 소리 장치 스레드가 쓰고 화면 스레드가 읽는다(생산자 하나, 소비자 하나).
+    static constexpr size_t kNoteCap = 256;
+    long note_q[kNoteCap];                 // (소리 프레임 << 16) | (세기 << 8) | 음 높이
+    std::atomic<size_t> note_w{0}, note_r{0};
+    size_t announced = 0;                  // 소리 장치 스레드만 씀: 엔진 박자 큐에서 여기까지는 이미 알렸다
     ma_device dev{};
     bool dev_ok = false;
     std::thread render, composer;
@@ -68,6 +74,19 @@ void on_audio(ma_device *dev, void *out, const void *, ma_uint32 n) {
     const float fall = std::exp(-(float)n / 48000.f / 0.14f);        // 내려가는 시간 약 0.14초
     const float e = P.env.load() * fall;
     P.env.store(std::max(e, x));
+    // 피아노 화면: 박자 큐에 들어와 있는 음(재생 위치보다 앞선 것 포함)을 한 번씩만 알린다. 타악기는 건반이 없어 뺀다.
+    {
+        const size_t qr = P.E.onset_r.load(std::memory_order_acquire), qw = P.E.onset_w.load(std::memory_order_acquire);
+        if (P.announced < qr) P.announced = qr;
+        for (; P.announced < qw; P.announced++) {
+            const Engine::Onset &o = P.E.onset_q[P.announced % Engine::kOnsetCap];
+            if (o.key < 0 || o.track < 0 || o.track >= (int)insts().size() || insts()[o.track].drum) continue;
+            const size_t w = P.note_w.load(std::memory_order_relaxed);
+            if (w - P.note_r.load(std::memory_order_acquire) >= Player::kNoteCap) break;   // 화면이 못 따라오면 버림
+            P.note_q[w % Player::kNoteCap] = (o.frame << 16) | ((long)std::max(0, std::min(127, o.vel)) << 8) | (long)std::max(0, std::min(127, o.key));
+            P.note_w.store(w + 1, std::memory_order_release);
+        }
+    }
     // 박자 신호: 엔진이 알려 준 음 시작 시각이 재생 위치(지금까지 읽은 프레임 수)에 닿은 것을 꺼낸다 -> 소리와 같은 순간에 튄다
     const long played = (long)ring.r.load();
     float hit = 0.f;
@@ -217,6 +236,28 @@ JNIEXPORT jfloat JNICALL Java_com_twinpark_music_audio_BgmNative_nativePulse(JNI
 JNIEXPORT jfloat JNICALL Java_com_twinpark_music_audio_BgmNative_nativeBeat(JNIEnv *, jobject) {
     Player *p = g_player.get();
     return p ? p->beat.load() : 0.f;
+}
+
+// 피아노 화면: 새로 알려진 음들을 꺼낸다. 값 하나는 (소리 프레임 << 16) | (세기 << 8) | 음 높이(MIDI).
+JNIEXPORT jlongArray JNICALL Java_com_twinpark_music_audio_BgmNative_nativeNotes(JNIEnv *env, jobject) {
+    Player *p = g_player.get();
+    if (!p) return env->NewLongArray(0);
+    const size_t r = p->note_r.load(std::memory_order_relaxed), w = p->note_w.load(std::memory_order_acquire);
+    const jsize n = (jsize)(w - r);
+    jlongArray out = env->NewLongArray(n);
+    if (n > 0) {
+        std::vector<jlong> tmp(n);
+        for (jsize i = 0; i < n; i++) tmp[i] = (jlong)p->note_q[(r + i) % Player::kNoteCap];
+        env->SetLongArrayRegion(out, 0, n, tmp.data());
+        p->note_r.store(w, std::memory_order_release);
+    }
+    return out;
+}
+
+// 지금까지 소리 장치가 읽어 간 소리 프레임 수(재생 위치). nativeNotes의 프레임과 같은 눈금이다.
+JNIEXPORT jlong JNICALL Java_com_twinpark_music_audio_BgmNative_nativePlayed(JNIEnv *, jobject) {
+    Player *p = g_player.get();
+    return p ? (jlong)p->ring.r.load() : 0L;
 }
 
 // 상태 글자 한 줄: 분위기 이름|마디 역할|조|빠르기|끊김 횟수|연주중(0/1)
