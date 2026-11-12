@@ -73,8 +73,19 @@ fun BeadOrb(
 
     val pack = loaded.value ?: return
     // 키프레임 위치(0..K). 한 바퀴 돌면 되감아서 정밀도가 떨어지지 않는다.
-    val flow = rememberPhase(pack.frames.toDouble()) { speed * FLOW_RATE * motionScale.value }
-    val sway = rememberPhase(SWAY_PERIOD) { speed * motionScale.value }
+    // 흐르는 속도와 흔들림은 오브마다 다르다(OrbStyle). 포즈를 섞는 중에는 가중치로 섞은 값을 쓴다.
+    fun blended(pick: (OrbStyle) -> Float): Float {
+        var sum = 0f
+        var acc = 0f
+        for (p in 0 until OrbPoses.COUNT) {
+            val w = when (p) { 0 -> w0.value; 1 -> w1.value; 2 -> w2.value; 3 -> w3.value; 4 -> w4.value; else -> w5.value }
+            sum += w
+            acc += w * pick(OrbStyles.ALL[p])
+        }
+        return if (sum > 1e-4f) acc / sum else 1f
+    }
+    val flow = rememberPhase(pack.frames.toDouble()) { speed * FLOW_RATE * blended { it.flowRate } * motionScale.value }
+    val sway = rememberPhase(SWAY_PERIOD) { speed * blended { it.swayAmount } * motionScale.value }
 
     val buffers = remember(pack) { OrbBuffers(pack.count) }
     val weights = remember { FloatArray(OrbPoses.COUNT) }
@@ -108,10 +119,12 @@ fun BeadOrb(
         var rimFloor = 0f
         var edgeGrow = 0f
         for (p in weights.indices) {
-            edgeGrow += weights[p] * invW * OrbPoses.EDGE_GROW[p]
-            beadScale += weights[p] * invW * OrbPoses.BEAD_SCALE[p]
-            depthDim += weights[p] * invW * OrbPoses.DEPTH_DIM[p]
-            rimFloor += weights[p] * invW * OrbPoses.RIM_FLOOR[p]
+            val st = OrbStyles.ALL[p]
+            val wp = weights[p] * invW
+            edgeGrow += wp * st.edgeGrow
+            beadScale += wp * st.beadScale
+            depthDim += wp * st.depthDim
+            rimFloor += wp * st.rimFloor
         }
         val beadPx = (BEAD_DIAMETER * beadScale * unit * (1f + 0.25f * energy + 0.22f * hit)).coerceAtLeast(2.2f)
 
@@ -200,7 +213,7 @@ fun BeadOrb(
         for (p in weights.indices) {
             val w = weights[p] * invW
             if (w <= 0f) continue
-            val (cb, cm, cp) = OrbPoses.COLORS[p]
+            val (cb, cm, cp) = OrbStyles.ALL[p].colors
             br += w * cb.red; bg += w * cb.green; bb += w * cb.blue
             mr += w * cm.red; mg += w * cm.green; mb += w * cm.blue
             pr += w * cp.red; pg += w * cp.green; pb2 += w * cp.blue
@@ -295,8 +308,8 @@ private const val DEPTH_HALF = 1.45f
  */
 private const val BEAD_DIAMETER = 0.0195f
 
-/** 초당 키프레임 이동량(분위기 속도 1 기준). 키프레임이 8개라 한 바퀴에 약 6초(예전 4개, 0.5일 때 약 8초보다 조금 빠르다). */
-private const val FLOW_RATE = 1.3f
+/** 초당 키프레임 이동량의 공통 배율. 오브마다의 속도는 [OrbStyle.flowRate]가 정한다(구 0.5, 판형 0.7~0.9). 키프레임이 8개라 0.5이면 한 바퀴 약 16초, 0.9이면 약 9초. */
+private const val FLOW_RATE = 1.0f
 
 /** 포즈가 바뀔 때 가중치가 따라가는 시간. */
 private const val TRANSITION_MS = 1600
