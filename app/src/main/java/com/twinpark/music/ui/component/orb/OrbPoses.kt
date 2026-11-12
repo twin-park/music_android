@@ -3,30 +3,30 @@ package com.twinpark.music.ui.component.orb
 import androidx.compose.ui.graphics.Color
 
 /**
- * Figma 오브 시안 5장. 시안마다 모양과 색이 다르고, 분위기(음악 종류)마다 한 장이 대응한다.
+ * Figma 오브 시안 6장(0~4는 20/30/50/70/90%, 5는 눈 오는 밤 구리빛 구). 시안마다 모양과 색이 다르고, 분위기(음악 종류)마다 한 장이 대응한다.
  * 포즈 번호는 [com.twinpark.music.domain.Mood.orbPose]와 데이터 파일(orb_poses.bin)의 포즈 순서와 같다.
  * (시안에 적힌 퍼센트 20/30/50/70/90은 음량이 아니라 시안 구분 번호다)
  */
 object OrbPoses {
-    const val COUNT = 5
+    const val COUNT = 6
 
     /**
      * 포즈별 구슬 크기 배율. 면이 넓게 펼쳐진 포즈(보라, 하늘/노랑)는 같은 점 개수로 더 넓은 면을 덮어
      * 점 간격이 벌어지므로 구슬을 키워 빈틈이 보이지 않게 한다.
      */
-    val BEAD_SCALE = floatArrayOf(0.80f, 0.58f, 1.30f, 1.30f, 0.62f)
+    val BEAD_SCALE = floatArrayOf(0.80f, 0.58f, 1.30f, 1.30f, 0.62f, 0.80f)
 
     /**
      * 포즈별 깊이 어둡기(0이면 앞뒤 밝기가 같다). 어두운 배경 시안은 뒤쪽을 어둡게 해서 깊이를 주고,
      * 밝은 하늘색 시안(하늘/노랑)은 거의 어둡히지 않는다.
      */
-    val DEPTH_DIM = floatArrayOf(0.80f, 0.25f, 0.75f, 0.82f, 0.12f)
+    val DEPTH_DIM = floatArrayOf(0.80f, 0.25f, 0.75f, 0.82f, 0.12f, 0.30f)
 
     /** 포즈별 가장자리 구슬 확대량. 면 포즈(보라, 하늘/노랑)만 옆으로 선 구간을 메우려고 키운다. */
-    val EDGE_GROW = floatArrayOf(1.10f, 0.35f, 0.45f, 0.55f, 0f)
+    val EDGE_GROW = floatArrayOf(1.10f, 0.35f, 0.45f, 0.55f, 0f, 0f)
 
     /** 포즈별 최소 밝기(능선이 아닌 면의 밝기). 밝은 시안일수록 높다. */
-    val RIM_FLOOR = floatArrayOf(0.55f, 0.72f, 0.70f, 0.50f, 0.85f)
+    val RIM_FLOOR = floatArrayOf(0.55f, 0.72f, 0.70f, 0.50f, 0.85f, 0.78f)
 
     /** 포즈별 색: 가장자리 0 -> 0.5 -> 1을 base -> mid -> peak로 칠한다. */
     val COLORS: Array<Triple<Color, Color, Color>> = arrayOf(
@@ -45,5 +45,8 @@ object OrbPoses {
         // 하늘/노랑 (90%)
         // 시안: 하늘색 구슬 바탕에 흰 구슬, 윗면은 노랑. 구슬마다 시안 색을 읽어 0(파랑) 0.5(흰색) 1(노랑)로 넣는다.
         Triple(Color(0.20f, 0.62f, 0.98f), Color(0.96f, 0.98f, 1.00f), Color(1.00f, 0.88f, 0.40f)),
+        // 눈 오는 밤 (Figma 18:589)
+        // 시안: 짙은 갈색 구슬에서 구리빛 주황을 거쳐 능선은 밝은 노랑 주황
+        Triple(Color(0.62f, 0.24f, 0.06f), Color(0.96f, 0.46f, 0.07f), Color(1.00f, 0.74f, 0.30f)),
     )
 }

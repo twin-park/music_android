@@ -64,6 +64,7 @@ fun BeadOrb(
     val w2 = animateFloatAsState(target[2], spec, label = "w2")
     val w3 = animateFloatAsState(target[3], spec, label = "w3")
     val w4 = animateFloatAsState(target[4], spec, label = "w4")
+    val w5 = animateFloatAsState(target[5], spec, label = "w5")
     val motionScale = animateFloatAsState(
         targetValue = if (reducedMotion) 0f else 1f,
         animationSpec = tween(durationMillis = 600),
@@ -98,6 +99,7 @@ fun BeadOrb(
         weights[2] = w2.value
         weights[3] = w3.value
         weights[4] = w4.value
+        weights[5] = w5.value
         var wsum = 0f
         for (p in weights.indices) wsum += weights[p]
         val invW = if (wsum > 1e-4f) 1f / wsum else 0f
