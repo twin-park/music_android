@@ -9,7 +9,7 @@ import com.twinpark.music.R
 
 /**
  * 디자이너 노트의 글꼴.
- * - 끝내기, 분위기 바꾸기, "AI가 연주중": Pretendard Variable (끝내기와 분위기 바꾸기는 bold)
+ * - END, CHANGE THE MOOD, "AI IS CONDUCTING": Pretendard Variable (END와 CHANGE THE MOOD는 bold)
  * - 나머지: Inter (regular)
  *
  * Pretendard는 가변 글꼴이라 굵기마다 파일을 따로 두지 않고 굵기 축(`wght`)을 바꿔 쓴다. 라이선스는 SIL OFL 1.1.

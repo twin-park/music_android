@@ -180,14 +180,14 @@ class BgmService : Service() {
         ).build()
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_media_play)
-            .setContentTitle("AI가 연주중")
+            .setContentTitle("AI IS CONDUCTING")
             .setContentText(text)
             .setContentIntent(open)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
             .addAction(action(if (paused) "재생" else "일시정지", ACTION_TOGGLE, 1))
-            .addAction(action("끝내기", ACTION_STOP, 2))
+            .addAction(action("END", ACTION_STOP, 2))
             .build()
     }
 

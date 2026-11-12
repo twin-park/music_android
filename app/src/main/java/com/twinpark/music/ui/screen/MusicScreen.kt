@@ -280,7 +280,7 @@ private fun OrbPanel(
                     contentPadding = btnPad,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                     border = BorderStroke(1.dp, Color(0xCCFFFFFF)),
-                ) { Text("끝내기", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
+                ) { Text("END", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
                 OutlinedButton(
                     onClick = {
                         val list = Mood.EngineMoods
@@ -291,7 +291,7 @@ private fun OrbPanel(
                     contentPadding = btnPad,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                     border = BorderStroke(1.dp, Color(0xCCFFFFFF)),
-                ) { Text("분위기 바꾸기", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
+                ) { Text("CHANGE THE MOOD", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = ui(if (compact) 14f else 17f)) }
                 if (debuggable) {
                     TextButton(
                         onClick = { devOpen = !devOpen },
@@ -300,10 +300,10 @@ private fun OrbPanel(
                     ) { Text(if (devOpen) "닫기" else "DEV", color = Color(0xFF7DD3FC), fontSize = ui(12f)) }
                 }
             }
-            // 제목: 위 가로선 + "AI가 연주중"
+            // 제목: 위 가로선 + "AI IS CONDUCTING"
             Column {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White))
-                Text("AI가 연주중", color = Color.White, fontSize = ui(16f), fontFamily = AppFonts.Pretendard, modifier = Modifier.padding(top = 4.dp))
+                Text("AI IS CONDUCTING", color = Color.White, fontSize = ui(16f), fontFamily = AppFonts.Pretendard, modifier = Modifier.padding(top = 4.dp))
                 Text(
                     text = when (bgmState) {
                         BgmState.Idle, BgmState.Loading -> "음악 준비 중..."
