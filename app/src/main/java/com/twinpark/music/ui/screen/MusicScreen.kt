@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -204,9 +206,31 @@ private fun OrbPanel(
     // 가로 화면(폰은 높이 360dp 안팎)처럼 낮으면 컴팩트: 오브가 늘 보이도록 날씨 표를 줄이고 버튼을 낮춘다.
     BoxWithConstraints(modifier) {
         val compact = maxHeight < COMPACT_HEIGHT
-        // 시안은 오른쪽 패널이 위에서 한참 내려와 시작한다(큰 화면에서만, 폰은 공간이 없어 그대로)
+        // 시안은 오른쪽 패널이 위에서 한참 내려와 시작한다(큰 화면에서만). 그 비어 있던 자리에 상단 바(끝내기)를 둔다.
+        // 운전 중 짧은 시간에 누르기 쉽도록 돌아가기 버튼은 위쪽에 두고, 터치 영역을 충분히 크게 한다(디자이너 노트).
         val topGap = if (!compact && maxHeight >= 700.dp) maxHeight * 0.08f else 0.dp
-        Column(Modifier.fillMaxSize().padding(top = topGap), verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp)) {
+        val barH = maxOf(topGap, ((if (compact) 36 else 48) * LocalUiScale.current).dp)
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp)) {
+            Row(Modifier.fillMaxWidth().height(barH), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(
+                    onClick = {
+                        onEnd()
+                        (context as? Activity)?.finish()      // 화면은 바로 닫고, 연주는 서비스가 곡을 마무리한 뒤 끝낸다
+                    },
+                    modifier = Modifier.height(((if (compact) 36 else 48) * LocalUiScale.current).dp).widthIn(min = (96 * LocalUiScale.current).dp),
+                    contentPadding = if (compact) PaddingValues(horizontal = 12.dp, vertical = 2.dp) else ButtonDefaults.ContentPadding,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                    border = BorderStroke(1.dp, Color(0x99FFFFFF)),
+                ) { Text("끝내기", fontSize = ui(if (compact) 13f else 15f), fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
+                Spacer(Modifier.weight(1f))
+                if (debuggable) {
+                    TextButton(
+                        onClick = { devOpen = !devOpen },
+                        modifier = Modifier.height(28.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    ) { Text(if (devOpen) "DEV 닫기" else "DEV", color = Color(0xFF7DD3FC), fontSize = ui(12f)) }
+                }
+            }
             // 제목: 위 가로선 + "AI가 연주중"
             Column {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White))
@@ -232,38 +256,22 @@ private fun OrbPanel(
                 modifier = Modifier.weight(1f).fillMaxWidth().heightIn(min = 90.dp),
             )
             WeatherDetail(mood.weather, compact)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            run {
                 val btnPad = if (compact) PaddingValues(horizontal = 12.dp, vertical = 2.dp) else ButtonDefaults.ContentPadding
-                val btnMod = Modifier.weight(1f).height(((if (compact) 36 else 44) * LocalUiScale.current).dp)
-                OutlinedButton(
-                    onClick = {
-                        onEnd()
-                        (context as? Activity)?.finish()      // 화면은 바로 닫고, 연주는 서비스가 곡을 마무리한 뒤 끝낸다
-                    },
-                    modifier = btnMod,
-                    contentPadding = btnPad,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0x99FFFFFF)),
-                ) { Text("끝내기", fontSize = ui(if (compact) 13f else 15f)) }
                 Button(
                     onClick = {
                         val list = Mood.EngineMoods
                         val at = list.indexOfFirst { it.id == engineId }
                         onEngineChange(list[(at + 1) % list.size].id)
                     },
-                    modifier = btnMod,
+                    modifier = Modifier.fillMaxWidth().height(((if (compact) 36 else 44) * LocalUiScale.current).dp),
                     contentPadding = btnPad,
                     colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
-                ) { Text("분위기 바꾸기", fontSize = ui(if (compact) 13f else 15f)) }
+                ) { Text("분위기 바꾸기", fontSize = ui(if (compact) 13f else 15f), fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
             }
         }
         // 개발용(디버그 빌드만): 접어 두었다가 펼치면 패널 위에 겹쳐 보인다. 오브 자리를 빼앗지 않는다.
         if (debuggable) {
-            TextButton(
-                onClick = { devOpen = !devOpen },
-                modifier = Modifier.align(Alignment.TopEnd).height(28.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-            ) { Text(if (devOpen) "DEV 닫기" else "DEV", color = Color(0xFF7DD3FC), fontSize = ui(12f)) }
             if (devOpen) {
                 Box(
                     Modifier.align(Alignment.BottomCenter).fillMaxWidth()
