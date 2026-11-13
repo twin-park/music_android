@@ -2,10 +2,15 @@ package com.twinpark.music
 
 import com.twinpark.music.domain.Mood
 import com.twinpark.music.domain.TimeOfDay
+import com.twinpark.music.domain.Weather
+import com.twinpark.music.domain.WeatherReport
 import com.twinpark.music.domain.WeatherSource
 import com.twinpark.music.domain.WeatherState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Calendar
 
 class WeatherStateTest {
     @Test fun 시간대_경계() {
@@ -48,5 +53,32 @@ class WeatherStateTest {
         TimeOfDay.values().forEach { assertEquals(Mood.Snow, WeatherState(it, snowing = true).scene()) }
         assertEquals(Mood.Snow, WeatherState(TimeOfDay.DAY, raining = true, snowing = true).scene())
         assertEquals(5, WeatherState(TimeOfDay.NIGHT, snowing = true).scene().orbPose)
+    }
+
+    private val rainReport = WeatherReport(
+        raining = true, snowing = false, cloudsPercent = 90, humidityPercent = 70, windKmh = 12, precipitationMm = 2.4f, fetchedAtMs = 1_000L,
+    )
+    private val noon = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 12) }
+
+    @Test fun 신선한_날씨값은_비와_상세값에_반영() {
+        val state = WeatherSource.auto(noon, rainReport, nowMs = 2_000L)
+        assertEquals(TimeOfDay.DAY, state.time)
+        assertTrue(state.raining)
+        assertEquals(Weather(cloudy = 90, humidity = 70, windKmh = 12, rainMm = 2), state.detail)
+    }
+
+    @Test fun 오래된_날씨값은_버리고_시계만_쓴다() {
+        val state = WeatherSource.auto(noon, rainReport, nowMs = 1_000L + WeatherReport.MAX_AGE_MS + 1)
+        assertFalse(state.raining)
+        assertEquals(null, state.detail)
+    }
+
+    @Test fun 날씨값이_없으면_시계만_쓴다() {
+        assertEquals(WeatherState(TimeOfDay.DAY), WeatherSource.auto(noon, report = null))
+    }
+
+    @Test fun 수동값은_날씨값보다_우선() {
+        val manual = WeatherState(TimeOfDay.NIGHT, snowing = true)
+        assertEquals(manual, WeatherSource.resolve(manual, noon, rainReport, nowMs = 2_000L))
     }
 }

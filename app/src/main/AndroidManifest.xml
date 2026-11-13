@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <!-- 알림을 보이려면 Android 13 이상에서 필요하다(없어도 연주는 된다) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 현재 날씨(OpenWeatherMap)를 받는다. 키가 없으면 요청하지 않는다 -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
