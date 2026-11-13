@@ -1,6 +1,7 @@
 package com.twinpark.music.audio
 
 import com.twinpark.music.car.AppDriving
+import com.twinpark.music.car.PleosNaviSource
 import com.twinpark.music.sensing.AppSensors
 import com.twinpark.music.domain.DebugSoundSensor
 import com.twinpark.music.domain.heardAll
@@ -13,6 +14,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
@@ -44,6 +46,7 @@ class BgmService : Service() {
     private var ending = false
     private var notifyJob: Job? = null
     private var senseJob: Job? = null
+    private var navi: PleosNaviSource? = null
 
     private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
         Log.i(TAG, "오디오 포커스 변화: ${focusName(change)}")
@@ -102,6 +105,9 @@ class BgmService : Service() {
         if (!requestFocus()) Log.w(TAG, "오디오 포커스를 얻지 못함")
         BgmController.start(applicationContext)
         AppDriving.start(applicationContext)
+        if (navi == null && packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)) {
+            navi = PleosNaviSource(applicationContext) { scope.launch(Dispatchers.Main) { finish() } }.also { it.start() }
+        }
         if (senseJob == null) senseJob = scope.launch(Dispatchers.Main) {
             while (true) {
                 SituationDirector.observe(AppSensors.all.heardAll())
@@ -139,6 +145,7 @@ class BgmService : Service() {
 
     /** 곡을 마무리하고(끝 페이드) 끝난 뒤 서비스를 닫는다. 이미 멈춰 있으면 바로 닫는다. */
     private fun finish() {
+        if (ending) return
         if (BgmController.paused.value || BgmController.state.value != BgmState.Ready) { stopSelfAfterEnd(); return }
         ending = true
         BgmController.end()
@@ -147,6 +154,8 @@ class BgmService : Service() {
 
     private fun stopSelfAfterEnd() {
         AppDriving.stop()
+        navi?.close()
+        navi = null
         BgmMediaSession.deactivate()
         abandonFocus()
         BgmController.shutdown()
