@@ -67,6 +67,9 @@ import com.twinpark.music.domain.Mood
 import com.twinpark.music.ui.theme.AppFonts
 import com.twinpark.music.domain.TimeOfDay
 import com.twinpark.music.domain.WeatherSource
+import com.twinpark.music.domain.AppSensors
+import com.twinpark.music.domain.DebugSoundSensor
+import com.twinpark.music.domain.heardAll
 import com.twinpark.music.weather.AppWeather
 import com.twinpark.music.domain.WeatherState
 import com.twinpark.music.domain.TrackerState
@@ -125,10 +128,10 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     val bgmPaused by BgmController.paused.collectAsState()
     var status by remember { mutableStateOf<BgmStatus?>(null) }
     LaunchedEffect(Unit) { BgmService.start(context) }
-    // 귀가 2초마다 단어를 알려 주는 것을 흉내 낸다(지금은 디버그 칩이 고른 단어). 귀 모델이 붙으면 그쪽이 같은 함수를 부른다.
     LaunchedEffect(sensed) {
+        DebugSoundSensor.fromScreen = sensed
         while (true) {
-            SituationDirector.observe(sensed)
+            SituationDirector.observe(AppSensors.all.heardAll())
             delay(2000)
         }
     }

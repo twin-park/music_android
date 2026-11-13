@@ -1,5 +1,6 @@
 package com.twinpark.music.audio
 
+import com.twinpark.music.domain.DebugSoundSensor
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -65,7 +66,7 @@ class BgmService : Service() {
     private val debugWordsReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val w = intent.getStringExtra("words").orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
-            SituationDirector.debugWords = w
+            DebugSoundSensor.fromAdb = w
             Log.i(TAG, "디버그 단어: $w")
         }
     }

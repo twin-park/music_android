@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * 귀(ear)가 알려 주는 단어를 받아 상황을 판단하고, 엔진 분위기와 조절값, 통화 시 볼륨 낮춤으로 바꾸는 곳.
  * 판단 자체는 [SituationTracker]/[SituationRules]가 하고, 여기서는 그 결과를 [BgmController]에 적용한다.
  *
- * 지금은 단어를 디버그 화면이 넣는다. 귀 모델이 온디바이스로 붙으면 그쪽이 [observe]를 2초마다 부른다.
+ * 단어는 [com.twinpark.music.domain.SoundSensor]들이 낸다. [observe]를 2초마다 부르는 쪽이 그 단어를 모아 넘긴다.
  */
 object SituationDirector {
     private const val TAG = "Situation"
@@ -25,17 +25,13 @@ object SituationDirector {
 
     private var manualUntilMs = 0L
 
-    /** 개발용: adb 방송으로 넣은 단어. 화면 칩이 넣은 단어와 합쳐서 판단한다([BgmService]의 디버그 수신기 참고). */
-    @Volatile
-    var debugWords: Set<String> = emptySet()
-
     /** 직접 분위기를 고른 뒤 이 시간 동안은 자동 전환을 보류한다. */
     private const val MANUAL_HOLD_MS = 60_000L
 
     /** 이번에 들린 단어들을 알려 준다. [nowMs]는 단조 시계(밀리초). */
     @Synchronized
     fun observe(words: Collection<String>, nowMs: Long = android.os.SystemClock.elapsedRealtime()) {
-        val all = words.toSet() + debugWords
+        val all = words.toSet()
         val st = tracker.update(nowMs, all, SituationRules.isNight())
         val before = _state.value
         _state.value = st
