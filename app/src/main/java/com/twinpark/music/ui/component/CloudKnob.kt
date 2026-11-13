@@ -7,74 +7,46 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import com.twinpark.music.domain.Quadrant
 import com.twinpark.music.domain.QuadrantControl
-import com.twinpark.music.ui.theme.AppFonts
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.semantics.setProgress
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asComposeRenderEffect
-import androidx.compose.ui.unit.sp
 import com.twinpark.music.domain.Mood
 import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -235,91 +207,7 @@ fun CloudKnob(
                 return@record
             }
 
-            // 하늘: 왼쪽 위 > 오른쪽 아래
-            drawRect(
-                Brush.linearGradient(
-                    colors = sky.map { it.value },
-                    start = Offset(0f, h * 0.15f),
-                    end = Offset(w, h * 0.75f),
-                ),
-            )
-            // 광원(왼쪽 위) 번짐
-            val glowRadius = max(w, h) * 0.55f
-            val glowCenter = Offset(w * 0.08f, h * 0.06f)
-            drawRect(
-                Brush.radialGradient(
-                    colors = listOf(
-                        glow.value.copy(alpha = 0.75f),
-                        glow.value.copy(alpha = 0.25f),
-                        glow.value.copy(alpha = 0f),
-                    ),
-                    center = glowCenter,
-                    radius = glowRadius,
-                ),
-            )
-
-            val unit = min(w, h)
-            for (i in CLOUDS.indices) {
-                val c = CLOUDS[i]
-                val alpha = c.alpha * cloudDensity.value
-                // 천천히 떠다니는 움직임. 계수는 0.1의 배수라 PHASE_PERIOD에서 이음매가 없다.
-                val driftX = sin(t * 0.2f + i * 1.7f) * 0.03f * w * (0.5f + c.depth)
-                val driftY = sin(t * 0.1f + i * 2.3f) * 0.015f * h
-                // 노브 반대 방향으로 밀려난다. 가까운 구름(depth 큼)일수록 많이 움직인다.
-                val cx = c.x * w + driftX - pushX.value * c.depth * 0.10f * w
-                val cy = c.y * h + driftY - pushY.value * c.depth * 0.10f * h
-                val s = c.size * unit
-                val puffs = CLOUD_PUFFS[i]
-
-                // 1) 밝은 구름 덩어리를 먼저 깐다
-                var k = 0
-                while (k < puffs.size) {
-                    val center = Offset(cx + puffs[k] * s, cy + puffs[k + 1] * s)
-                    val r = puffs[k + 2] * s
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            0f to lit.value.copy(alpha = alpha * 0.95f),
-                            0.55f to lit.value.copy(alpha = alpha * 0.80f),
-                            0.85f to lit.value.copy(alpha = alpha * 0.30f),
-                            1f to Color.Transparent,
-                            center = center,
-                            radius = r,
-                        ),
-                        radius = r,
-                        center = center,
-                    )
-                    k += 3
-                }
-
-                // 2) 어두운 그림자를 광원 반대쪽(오른쪽 아래)으로 밀어 얹는다.
-                //    광원 쪽(왼쪽 위) 가장자리에만 밝은 테두리가 남고 몸통은 어두워진다.
-                //    광원에서 먼 구름(x가 큰 쪽)일수록 그림자가 짙고 차가운 색, 가까운 구름은 옅고 따뜻한 색이다.
-                val dark = (0.15f + 0.95f * c.x).coerceIn(0f, 1f)
-                val shadeColor = lerp(warm.value, shade.value, dark)
-                val shadeAlpha = alpha * (0.28f + 0.72f * dark)
-                k = 0
-                while (k < puffs.size) {
-                    val pr = puffs[k + 2]
-                    val r = pr * s * SHADE_SCALE
-                    val center = Offset(
-                        cx + puffs[k] * s - LIGHT_X * pr * s * SHADE_SHIFT,
-                        cy + puffs[k + 1] * s - LIGHT_Y * pr * s * SHADE_SHIFT,
-                    )
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            0f to shadeColor.copy(alpha = shadeAlpha * 0.92f),
-                            0.5f to shadeColor.copy(alpha = shadeAlpha * 0.70f),
-                            0.85f to shadeColor.copy(alpha = shadeAlpha * 0.22f),
-                            1f to Color.Transparent,
-                            center = center,
-                            radius = r,
-                        ),
-                        radius = r,
-                        center = center,
-                    )
-                    k += 3
-                }
-            }
+            drawSky(w, h, t, sky, glow, lit, shade, warm, cloudDensity, pushX, pushY)
           }
           drawLayer(cloudLayer)
         }
@@ -327,169 +215,9 @@ fun CloudKnob(
         weatherContent()
 
         // 4분면 안내: 옅은 십자선과 분면 이름. 노브가 있는 분면의 이름이 밝아진다.
-        if (quadrantGuides && fieldSize != IntSize.Zero) {
-            val activeQuadrant = QuadrantControl.quadrantAt(pos.x, pos.y)
-            val centerX = fieldW / 2f
-            val centerY = (fieldSize.height - reservedPx) / 2f
-            val dash = PathEffect.dashPathEffect(floatArrayOf(10f, 14f))
-            Canvas(Modifier.fillMaxSize()) {
-                val lineColor = Color.White.copy(alpha = 0.30f)
-                drawLine(lineColor, Offset(centerX, centerY * 0.10f), Offset(centerX, centerY * 1.90f), strokeWidth = 1.5f, pathEffect = dash)
-                drawLine(lineColor, Offset(fieldW * 0.04f, centerY), Offset(fieldW * 0.96f, centerY), strokeWidth = 1.5f, pathEffect = dash)
-                // 기억된 값 표시: 노브가 다른 구획에 있어도 각 구획의 값이 어디쯤인지 작은 고리로 보인다(노브는 놓인 구획의 값을 직접 보여 준다)
-                val halfW = ((fieldW - travelPx) / 2f).coerceAtLeast(0f)
-                val halfH = ((fieldSize.height - reservedPx - travelPx) / 2f).coerceAtLeast(0f)
-                Quadrant.values().forEachIndexed { i, q ->
-                    if (q == activeQuadrant) return@forEachIndexed
-                    val sx = if (i % 2 == 0) -1f else 1f
-                    val sy = if (i < 2) -1f else 1f
-                    val l = quadrantLevels[i] * 0.7071f
-                    val marker = Offset(centerX + sx * l * halfW, centerY + sy * l * halfH)
-                    drawCircle(Color.White.copy(alpha = 0.55f), radius = 7.dp.toPx() * unitScale, center = marker, style = Stroke(width = 1.6.dp.toPx()))
-                    drawCircle(Color.White.copy(alpha = 0.55f), radius = 2.2.dp.toPx() * unitScale, center = marker)
-                }
-            }
-            val labelW = 150.dp * unitScale
-            val labelH = 28.dp * unitScale
-            val wPx = with(density) { labelW.toPx() }
-            val hPx = with(density) { labelH.toPx() }
-            Quadrant.values().forEachIndexed { i, q ->
-                val sx = if (i % 2 == 0) -1f else 1f
-                val sy = if (i < 2) -1f else 1f
-                val lx = centerX + sx * fieldW * 0.25f
-                val ly = centerY + sy * centerY * 0.55f
-                Box(
-                    Modifier
-                        .offset { IntOffset((lx - wPx / 2f).roundToInt(), (ly - hPx / 2f).roundToInt()) }
-                        .size(labelW, labelH),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "${q.label} ${(quadrantLevels[i] * 100f).roundToInt()}%",
-                        color = Color.White.copy(alpha = if (q == activeQuadrant) 1f else 0.40f),
-                        fontSize = (13f * unitScale).sp,
-                        letterSpacing = 2.sp,
-                        fontFamily = AppFonts.Inter,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
-            }
-        }
+        if (quadrantGuides && fieldSize != IntSize.Zero) QuadrantGuides(fieldW, fieldSize.height.toFloat(), reservedPx, travelPx, unitScale, pos, quadrantLevels)
 
-        // 유리 노브의 바닥 그림자: 뒤 장면 위에 떠 있는 느낌을 준다
-        Box(
-            Modifier
-                .offset { knobTopLeft().let { IntOffset(it.x.roundToInt(), it.y.roundToInt()) } }
-                .size(knobSize)
-                .drawBehind {
-                    val rr = size.minDimension / 2f
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            0.62f to Color.Black.copy(alpha = 0.14f), 1f to Color.Transparent,
-                            center = Offset(size.width / 2f, size.height / 2f + rr * 0.16f), radius = rr * 1.32f,
-                        ),
-                        radius = rr * 1.32f,
-                        center = Offset(size.width / 2f, size.height / 2f + rr * 0.16f),
-                    )
-                },
-        )
-        // 유리 노브
-        Box(
-            modifier = Modifier
-                .offset { knobTopLeft().let { IntOffset(it.x.roundToInt(), it.y.roundToInt()) } }
-                .size(knobSize)
-                .clip(CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Canvas(Modifier.fillMaxSize()) {
-                val r = size.minDimension / 2f
-                val c = Offset(size.width / 2f, size.height / 2f)
-                val tl = knobTopLeft()
-                val glass = Path().apply { addOval(androidx.compose.ui.geometry.Rect(c, r)) }
-                val shader = lensShader
-                clipPath(glass) {
-                    if (shader != null) {
-                        // 굴절: 가운데는 확대되고 가장자리로 갈수록 휘어 보이며, 가장자리에서 색이 살짝 갈라진다
-                        lensLayer.renderEffect = lensEffect
-                        lensLayer.record(this, layoutDirection, IntSize(size.width.toInt(), size.height.toInt())) {
-                            withTransform({ translate(-tl.x, -tl.y) }) {
-                                drawLayer(cloudLayer)
-                                lensExtra?.invoke(this, fieldSize.width.toFloat(), fieldSize.height.toFloat())
-                            }
-                        }
-                        drawLayer(lensLayer)
-                    } else {
-                        withTransform({
-                            translate(-tl.x, -tl.y)
-                            scale(KNOB_LENS_ZOOM, KNOB_LENS_ZOOM, pivot = Offset(tl.x + c.x, tl.y + c.y))
-                        }) {
-                            drawLayer(cloudLayer)
-                            lensExtra?.invoke(this, fieldSize.width.toFloat(), fieldSize.height.toFloat())
-                        }
-                    }
-                    // 글자는 그림자로 읽히게 하고(아래 Text), 면은 맑게 둔다. 아주 옅은 푸른 틴트만 얹는다.
-                    drawCircle(Color(0xFF0C1240).copy(alpha = 0.10f))
-                    // 왼쪽 위의 넓고 부드러운 빛 번짐
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            0f to Color.White.copy(alpha = 0.30f), 1f to Color.Transparent,
-                            center = Offset(size.width * 0.30f, size.height * 0.26f), radius = r * 0.75f,
-                        ),
-                    )
-                    // 오른쪽 아래 안쪽에 되비치는 빛(두꺼운 유리 바닥에 모이는 빛)
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            0.55f to Color.Transparent, 0.9f to Color.White.copy(alpha = 0.16f), 1f to Color.Transparent,
-                            center = Offset(size.width * 0.66f, size.height * 0.70f), radius = r * 0.62f,
-                        ),
-                    )
-                    // 두꺼운 유리의 가장자리: 안쪽은 투명하고 바깥으로 갈수록 빛이 모인다
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            0f to Color.Transparent, 0.72f to Color.Transparent,
-                            0.92f to Color.White.copy(alpha = 0.20f), 1f to Color.White.copy(alpha = 0.50f),
-                            center = c, radius = r,
-                        ),
-                    )
-                    // 면 전체에 걸친 부드러운 반사(왼쪽 위에서 오른쪽 아래로 흐른다)
-                    drawCircle(
-                        brush = Brush.linearGradient(
-                            colors = listOf(Color.White.copy(alpha = 0.20f), Color.Transparent, Color.White.copy(alpha = 0.06f)),
-                            start = Offset(size.width * 0.05f, size.height * 0.0f),
-                            end = Offset(size.width * 0.95f, size.height * 1.0f),
-                        ),
-                    )
-                }
-                // 테두리 빛: 왼쪽 위와 오른쪽 아래만 밝게 번지는 호(둥근 덩어리가 아니라 가장자리를 따라간다)
-                val ring = r - 1.dp.toPx()
-                val rect = androidx.compose.ui.geometry.Rect(c, ring)
-                drawCircle(Color.White.copy(alpha = 0.22f), radius = ring, style = Stroke(width = 1.dp.toPx()))
-                drawArc(
-                    brush = Brush.sweepGradient(
-                        0f to Color.Transparent, 0.50f to Color.White.copy(alpha = 0.0f),
-                        0.62f to Color.White.copy(alpha = 0.95f), 0.72f to Color.White.copy(alpha = 0.0f), 1f to Color.Transparent,
-                        center = c,
-                    ),
-                    startAngle = 0f, sweepAngle = 360f, useCenter = false,
-                    topLeft = rect.topLeft, size = rect.size, style = Stroke(width = 2.2.dp.toPx()),
-                )
-                drawArc(
-                    brush = Brush.sweepGradient(
-                        0f to Color.White.copy(alpha = 0.0f), 0.10f to Color.White.copy(alpha = 0.55f), 0.20f to Color.White.copy(alpha = 0.0f), 1f to Color.Transparent,
-                        center = c,
-                    ),
-                    startAngle = 0f, sweepAngle = 360f, useCenter = false,
-                    topLeft = rect.topLeft, size = rect.size, style = Stroke(width = 1.6.dp.toPx()),
-                )
-            }
-            Text(
-                text = "$percent%",
-                color = Color.White,
-                fontSize = (34f * textScale).sp,
-                fontWeight = FontWeight.Light,
-                style = androidx.compose.ui.text.TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color(0x33000000), Offset(0f, 1f), 6f)),
-            )
-        }
+        GlassKnob(knobSize, { knobTopLeft() }, percent, textScale, cloudLayer, lensLayer, lensShader, lensEffect, fieldSize, lensExtra)
 
     }
 }
