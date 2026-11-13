@@ -78,9 +78,12 @@ object QuadrantControl {
         return EngineParams(reg = amt(Quadrant.Pitch), tempo = amt(Quadrant.Tempo), space = amt(Quadrant.Echo))
     }
 
-    /** 처음 값: 음량은 [INITIAL_VOLUME], 나머지는 기본. */
-    fun initialLevels(): FloatArray = FloatArray(Quadrant.values().size) { if (it == Quadrant.Volume.ordinal) INITIAL_VOLUME else NEUTRAL }
+    /** 처음 값: 음량은 [volume], 나머지는 기본. */
+    fun initialLevels(volume: Float = INITIAL_VOLUME): FloatArray = FloatArray(Quadrant.values().size) { if (it == Quadrant.Volume.ordinal) volume else NEUTRAL }
 
-    /** 시작할 때 노브 위치: 음량 구획(위 오른쪽)에서 시작 음량만큼 떨어진 곳. */
-    fun initialPos(): Pair<Float, Float> = (INITIAL_VOLUME * 0.7071f) to (-INITIAL_VOLUME * 0.7071f)
+    /** 시작할 때 노브 위치: 음량 구획(위 오른쪽)에서 [volume]만큼 떨어진 곳. */
+    fun initialPos(volume: Float = INITIAL_VOLUME): Pair<Float, Float> = (volume * 0.7071f) to (-volume * 0.7071f)
+
+    /** 저장된 음량을 시작 음량으로 쓴다. 없거나 깨졌으면 [INITIAL_VOLUME]. */
+    fun restoreVolume(saved: Float?): Float = saved?.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: INITIAL_VOLUME
 }
