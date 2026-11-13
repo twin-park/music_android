@@ -28,7 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * 구슬 점으로 이루어진 오브. 모양은 분위기에 대응하는 포즈 번호([pose])가 정한다 (Figma 시안 5장, [OrbPoses] 참고).
+ * 구슬 점으로 이루어진 오브. 모양은 분위기에 대응하는 포즈 번호([pose])가 정한다.
  *
  * - 모양은 Blender에서 미리 계산한 포즈 데이터([PosePack])를 쓴다. 모든 포즈가 같은 점 번호를 공유하므로
  *   두 포즈 사이는 점 위치를 섞기만 하면 된다.
@@ -38,7 +38,7 @@ import kotlinx.coroutines.withContext
  * - 점을 (깊이, 가장자리) 색 단계로 묶어 단계마다 `drawPoints` 한 번으로 그린다.
  * - [reducedMotion]이면 모양 움직임을 멈추고 밝기 반응만 남긴다 (주행 규제).
  *
- * @param pose 0 until [OrbPoses.COUNT]. 바뀌어도 즉시 반영되지 않고 부드럽게 따라간다.
+ * @param pose [OrbStyles.ALL]의 번호. 바뀌어도 즉시 반영되지 않고 부드럽게 따라간다.
  * @param pulse 0..1 소리 크기(부드럽게 오르내림). draw 단계에서 읽으므로 recomposition이 일어나지 않는다.
  * @param beat 0..1 박자 신호(음이 시작되는 순간 튀고 0.16초 안팎으로 가라앉음). 구슬 크기, 밝기, 전체 크기가 살짝 튄다.
  */
@@ -57,7 +57,7 @@ fun BeadOrb(
     }
 
     // 포즈 하나가 1, 나머지는 0인 목표 가중치. 값 자체를 천천히 따라가게 해서 포즈 사이를 섞는다.
-    val target = FloatArray(OrbPoses.COUNT) { if (it == pose) 1f else 0f }
+    val target = FloatArray(OrbStyles.ALL.size) { if (it == pose) 1f else 0f }
     val spec = tween<Float>(durationMillis = TRANSITION_MS, easing = FastOutSlowInEasing)
     val w0 = animateFloatAsState(target[0], spec, label = "w0")
     val w1 = animateFloatAsState(target[1], spec, label = "w1")
@@ -77,7 +77,7 @@ fun BeadOrb(
     fun blended(pick: (OrbStyle) -> Float): Float {
         var sum = 0f
         var acc = 0f
-        for (p in 0 until OrbPoses.COUNT) {
+        for (p in 0 until OrbStyles.ALL.size) {
             val w = when (p) { 0 -> w0.value; 1 -> w1.value; 2 -> w2.value; 3 -> w3.value; 4 -> w4.value; else -> w5.value }
             sum += w
             acc += w * pick(OrbStyles.ALL[p])
@@ -88,7 +88,7 @@ fun BeadOrb(
     val sway = rememberPhase(SWAY_PERIOD) { speed * blended { it.swayAmount } * motionScale.value }
 
     val buffers = remember(pack) { OrbBuffers(pack.count) }
-    val weights = remember { FloatArray(OrbPoses.COUNT) }
+    val weights = remember { FloatArray(OrbStyles.ALL.size) }
     val paint = remember {
         Paint().apply {
             isFilterBitmap = true
@@ -352,12 +352,12 @@ private class OrbBuffers(n: Int) {
     val colorChunks = Array(chunkCount) { IntArray(CHUNK * 4) }
 
     // 가중치가 있는 포즈(최대 포즈 수)의 키프레임 배열 참조
-    val actW = FloatArray(OrbPoses.COUNT)
-    val posA = arrayOfNulls<FloatArray>(OrbPoses.COUNT)
-    val posB = arrayOfNulls<FloatArray>(OrbPoses.COUNT)
-    val rimA = arrayOfNulls<FloatArray>(OrbPoses.COUNT)
-    val rimB = arrayOfNulls<FloatArray>(OrbPoses.COUNT)
-    val sizeP = arrayOfNulls<FloatArray>(OrbPoses.COUNT)
+    val actW = FloatArray(OrbStyles.ALL.size)
+    val posA = arrayOfNulls<FloatArray>(OrbStyles.ALL.size)
+    val posB = arrayOfNulls<FloatArray>(OrbStyles.ALL.size)
+    val rimA = arrayOfNulls<FloatArray>(OrbStyles.ALL.size)
+    val rimB = arrayOfNulls<FloatArray>(OrbStyles.ALL.size)
+    val sizeP = arrayOfNulls<FloatArray>(OrbStyles.ALL.size)
     val sizeMul = FloatArray(n)
 
     /** 구슬 하나(정점 4개)의 스프라이트 좌표. 모든 구슬이 같아서 한 번만 채운다. */

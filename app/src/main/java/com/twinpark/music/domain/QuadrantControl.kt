@@ -31,8 +31,7 @@ enum class Quadrant(val label: String) {
 object QuadrantControl {
     /**
      * 운전자에게 세부 조절(ECHO, PITCH, TEMPO)과 4분면 구획선을 보일지.
-     * false(기본)이면 구획선과 이름을 숨기고, 노브를 놓은 위치(중심에서의 거리)가 영역 어디서나 곧 음량이다. 나머지 세부 값은 기본(0)으로 두고 AI가 정한다.
-     * (2026-11-13 디자인 의견: 구획선을 빼고 세부 조절은 AI, 운전자는 음량만.) true로 바꾸면 이전 4분면 조절이 그대로 돌아온다.
+     * false면 구획선과 이름을 숨기고 노브의 중심 거리가 영역 어디서나 곧 음량이다. 세부 값은 기본(0)이고 AI가 정한다.
      */
     const val DETAIL_CONTROLS = false
 

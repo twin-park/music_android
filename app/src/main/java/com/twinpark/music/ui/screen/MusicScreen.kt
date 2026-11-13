@@ -169,7 +169,7 @@ fun MusicScreen(modifier: Modifier = Modifier) {
                 CloudKnob(
                     initialPos = com.twinpark.music.domain.QuadrantControl.initialPos().let { androidx.compose.ui.geometry.Offset(it.first, it.second) },
                     quadrantLevels = quadrantLevels,
-                    quadrantGuides = com.twinpark.music.domain.QuadrantControl.DETAIL_CONTROLS,      // 구획선과 이름은 세부 조절을 보일 때만
+                    quadrantGuides = com.twinpark.music.domain.QuadrantControl.DETAIL_CONTROLS,
                     onPositionChange = { x, y ->
                         quadrantLevels = com.twinpark.music.domain.QuadrantControl.update(quadrantLevels, x, y)
                     },
