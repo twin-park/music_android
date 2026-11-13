@@ -29,6 +29,13 @@ enum class Quadrant(val label: String) {
  * - 음량 외 항목은 50%가 분위기의 기본값이다(0%는 최소, 100%는 최대).
  */
 object QuadrantControl {
+    /**
+     * 운전자에게 세부 조절(ECHO, PITCH, TEMPO)과 4분면 구획선을 보일지.
+     * false(기본)이면 구획선과 이름을 숨기고, 노브를 놓은 위치(중심에서의 거리)가 영역 어디서나 곧 음량이다. 나머지 세부 값은 기본(0)으로 두고 AI가 정한다.
+     * (2026-11-13 디자인 의견: 구획선을 빼고 세부 조절은 AI, 운전자는 음량만.) true로 바꾸면 이전 4분면 조절이 그대로 돌아온다.
+     */
+    const val DETAIL_CONTROLS = false
+
     /** 가로축과 세로축에서 이 폭(정규화 좌표) 안쪽은 어느 구획도 아니라서 값을 바꾸지 않는다(경계에서 값이 튀지 않게). */
     const val DEAD_ZONE = 0.06f
 
@@ -53,6 +60,15 @@ object QuadrantControl {
 
     /** 노브 위치가 정하는 값(0..1): 중심에서의 거리. */
     fun levelAt(x: Float, y: Float): Float = hypot(x, y).coerceIn(0f, 1f)
+
+    /**
+     * 노브가 (x, y)로 옮겨졌을 때의 새 구획 값. 받은 배열은 바꾸지 않는다.
+     * [detailControls]가 true면 노브가 놓인 구획의 값만 바꾸고(축 위면 그대로), false면 어디서나 음량만 바꾼다.
+     */
+    fun update(levels: FloatArray, x: Float, y: Float, detailControls: Boolean = DETAIL_CONTROLS): FloatArray {
+        val target = if (detailControls) quadrantAt(x, y) ?: return levels else Quadrant.Volume
+        return levels.copyOf().also { it[target.ordinal] = levelAt(x, y) }
+    }
 
     /** 분면별 값(0..1, [Quadrant] 순서)에서 음량(0..1). */
     fun volumeOf(levels: FloatArray): Float = levels[Quadrant.Volume.ordinal]
