@@ -91,7 +91,11 @@ val copyBgmData by tasks.registering(Sync::class) {
 }
 tasks.named("preBuild") { dependsOn(copyBgmData) }
 
+// 차량 API(android.car) 스텁: SDK 플랫폼 36에 들어 있다. 실행할 때는 차량 시스템이 제공하고, 없으면 앱이 제한 없음으로 동작한다.
+val carApiStub = androidComponents.sdkComponents.sdkDirectory.map { it.file("platforms/android-36/optional/android.car.jar") }
+
 dependencies {
+    compileOnly(files(carApiStub))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

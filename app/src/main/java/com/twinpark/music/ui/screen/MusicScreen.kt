@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -63,6 +64,7 @@ import com.twinpark.music.audio.BgmService
 import com.twinpark.music.audio.BgmState
 import com.twinpark.music.audio.BgmStatus
 import com.twinpark.music.audio.MusicEngine
+import com.twinpark.music.car.CarUxRestrictionsSource
 import com.twinpark.music.audio.SituationDirector
 import com.twinpark.music.domain.Mood
 import com.twinpark.music.ui.theme.AppFonts
@@ -113,7 +115,12 @@ fun MusicScreen(modifier: Modifier = Modifier, engine: MusicEngine = BgmControll
     val skyColors = mood.palette.sky.mapIndexed { i, c -> animateColorAsState(c, tween(1500), label = "bg$i").value }
     var sensed by remember { mutableStateOf(emptySet<String>()) }        // 디버그: 귀가 들은 것으로 치는 단어들
     val situation by SituationDirector.state.collectAsState()
-    var reduced by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val restrictions = remember { CarUxRestrictionsSource.create(context) }
+    DisposableEffect(restrictions) { onDispose { restrictions.close() } }
+    val uxRestricted by restrictions.required.collectAsStateWithLifecycle()
+    var devReduced by remember { mutableStateOf(false) }
+    val reduced = devReduced || uxRestricted
     val sceneLayer = androidx.compose.ui.graphics.rememberGraphicsLayer()
     var pianoOn by remember { mutableStateOf(false) }               // 개발용: 오브 대신 피아노 화면(디자인에서 넣을지 미정)
     val precipitation = when { weatherNow.snowing -> Precipitation.Snow; weatherNow.raining -> Precipitation.Rain; else -> Precipitation.None }
@@ -121,7 +128,6 @@ fun MusicScreen(modifier: Modifier = Modifier, engine: MusicEngine = BgmControll
     val lensBase = if (precipitation == Precipitation.Rain) rainBase else null
     val rainAgsl = rememberRainShaderSource()
     val weatherClock = rememberWeatherClock(active = !reduced && precipitation != Precipitation.None)
-    val context = LocalContext.current
     val viewModel: MusicViewModel = viewModel(factory = remember(engine) { MusicViewModel.factory(engine, PreferencesVolumeStore(context)) })
     val quadrantLevels by viewModel.levels.collectAsStateWithLifecycle()
 
@@ -204,7 +210,8 @@ fun MusicScreen(modifier: Modifier = Modifier, engine: MusicEngine = BgmControll
                 onSensedChange = { sensed = it },
                 situation = situation,
                 reduced = reduced,
-                onReducedChange = { reduced = it },
+                devReduced = devReduced,
+                onReducedChange = { devReduced = it },
                 piano = pianoOn,
                 onPianoChange = { pianoOn = it },
                 bgmState = bgmState,
@@ -272,6 +279,7 @@ private fun OrbPanel(
     onSensedChange: (Set<String>) -> Unit,
     situation: TrackerState?,
     reduced: Boolean,
+    devReduced: Boolean,
     onReducedChange: (Boolean) -> Unit,
     piano: Boolean,
     onPianoChange: (Boolean) -> Unit,
@@ -362,7 +370,7 @@ private fun OrbPanel(
                 Box(
                     Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                         .background(Color(0xFF0B0F24), RoundedCornerShape(12.dp)).padding(8.dp),
-                ) { DevControls(engineId, onEngineChange, sensed, onSensedChange, situation, reduced, onReducedChange, piano, onPianoChange) }
+                ) { DevControls(engineId, onEngineChange, sensed, onSensedChange, situation, devReduced, onReducedChange, piano, onPianoChange) }
             }
         }
     }
