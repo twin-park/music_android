@@ -62,6 +62,7 @@ import com.twinpark.music.audio.BgmController
 import com.twinpark.music.audio.BgmService
 import com.twinpark.music.audio.BgmState
 import com.twinpark.music.audio.BgmStatus
+import com.twinpark.music.audio.MusicEngine
 import com.twinpark.music.audio.SituationDirector
 import com.twinpark.music.domain.Mood
 import com.twinpark.music.ui.theme.AppFonts
@@ -95,10 +96,10 @@ import com.twinpark.music.ui.component.orb.BeadOrb
  * 실제 앱에서는 AI(MoodEngine)와 주행 규제(CarUxRestrictions) 신호가 대신한다.
  */
 @Composable
-fun MusicScreen(modifier: Modifier = Modifier) {
+fun MusicScreen(modifier: Modifier = Modifier, engine: MusicEngine = BgmController) {
     // 화면을 다시 열면 연주 중이던 분위기를 이어서 보여 준다
     // 분위기는 컨트롤러가 쥔다: 상황 판단(귀가 알려 준 단어)이나 사용자 조작이 바꾸고, 오브와 하늘은 그에 맞는 장면을 쓴다
-    val engineId by BgmController.moodId.collectAsState()
+    val engineId by engine.moodId.collectAsState()
     // 오브와 하늘 장면은 음악 분위기가 아니라 바깥 날씨(시간대, 비)가 고른다. DEV 패널이 정한 수동 값이 없으면 기기 시계를 따른다.
     val manualWeather by WeatherSource.manual.collectAsState()
     val weatherReport by WeatherSource.report.collectAsState()
@@ -130,13 +131,13 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     }
 
     // 배경음악: 엔진은 포그라운드 서비스가 쥐고 있어서 화면을 닫아도 계속 연주한다. 화면은 상태를 보여 주고 요청만 보낸다.
-    val bgmState by BgmController.state.collectAsState()
-    val bgmPaused by BgmController.paused.collectAsState()
+    val bgmState by engine.state.collectAsState()
+    val bgmPaused by engine.paused.collectAsState()
     var status by remember { mutableStateOf<BgmStatus?>(null) }
     LaunchedEffect(Unit) { BgmService.start(context) }
     LaunchedEffect(sensed) { DebugSoundSensor.fromScreen = sensed }
     // 음량 노브 0..1은 소리 크기에 제곱을 취해 귀에 고르게 느껴지게 한다
-    LaunchedEffect(volume) { BgmController.setVolume(volume * volume) }
+    LaunchedEffect(volume) { engine.setVolume(volume * volume) }
 
     // 구획 값에서 나온 엔진 조절량(음량 제외). 노브를 만지기 전에는 0이라 분위기 기본값 그대로다.
     // 값이 바뀌면 0.9초에 걸쳐 따라간다(음악이 갑자기 달라지지 않게).
@@ -147,11 +148,11 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     val qDens by androidx.compose.animation.core.animateFloatAsState(quadrantTarget.dens, quadSpec, label = "qDens")
     val qSpace by androidx.compose.animation.core.animateFloatAsState(quadrantTarget.space, quadSpec, label = "qSpace")
     LaunchedEffect(qReg, qTempo, qDens, qSpace) {
-        BgmController.setKnobParams(com.twinpark.music.domain.EngineParams(reg = qReg, tempo = qTempo, dens = qDens, space = qSpace))
+        engine.setKnobParams(com.twinpark.music.domain.EngineParams(reg = qReg, tempo = qTempo, dens = qDens, space = qSpace))
     }
     LaunchedEffect(bgmState) {
         while (bgmState == BgmState.Ready) {
-            status = BgmController.status()
+            status = engine.status()
             delay(500)
         }
     }
@@ -202,9 +203,10 @@ fun MusicScreen(modifier: Modifier = Modifier) {
         val orb: @Composable (Modifier) -> Unit = { m ->
             OrbPanel(
                 mood = mood,
+                engine = engine,
                 weather = weatherNow.detail ?: mood.weather,
                 engineId = engineId,
-                onEngineChange = { SituationDirector.manualOverride(); BgmController.requestMood(it) },
+                onEngineChange = { SituationDirector.manualOverride(); engine.requestMood(it) },
                 sensed = sensed,
                 onSensedChange = { sensed = it },
                 situation = situation,
@@ -215,8 +217,8 @@ fun MusicScreen(modifier: Modifier = Modifier) {
                 bgmState = bgmState,
                 paused = bgmPaused,
                 status = status,
-                pulse = BgmController::pulse,
-                beat = BgmController::beat,
+                pulse = engine::pulse,
+                beat = engine::beat,
                 onEnd = { BgmService.stop(context) },
                 modifier = m,
             )
@@ -269,6 +271,7 @@ fun MusicScreen(modifier: Modifier = Modifier) {
 @Composable
 private fun OrbPanel(
     mood: Mood,
+    engine: MusicEngine,
     weather: Weather,
     engineId: String,
     onEngineChange: (String) -> Unit,
@@ -348,7 +351,7 @@ private fun OrbPanel(
             }
             if (piano) {
                 // 개발용 선택 화면: 반투명 건반과 내려오는 음(Figma 피아노 화면). 연주 중일 때만 음이 나온다.
-                PianoRoll(tint = mood.peak, modifier = Modifier.weight(1f).fillMaxWidth().heightIn(min = 90.dp))
+                PianoRoll(tint = mood.peak, engine = engine, modifier = Modifier.weight(1f).fillMaxWidth().heightIn(min = 90.dp))
             } else BeadOrb(
                 // 오브 모양은 분위기(음악 종류)가 정한다. 분위기마다 Figma 시안 한 장이 대응한다.
                 pose = mood.orbPose,
