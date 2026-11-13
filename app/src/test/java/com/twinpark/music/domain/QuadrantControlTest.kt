@@ -47,6 +47,35 @@ class QuadrantControlTest {
     }
 
     @Test
+    fun volumeOnlyChangesVolumeAnywhere() {
+        // 세부 조절을 숨기면 어느 구획에 놓아도 음량만 바뀌고 나머지는 기본이다
+        val start = QuadrantControl.initialLevels()
+        for ((x, y) in listOf(-0.4f to -0.3f, -0.3f to 0.4f, 0.3f to 0.4f, 0.01f to 0.5f)) {
+            val l = QuadrantControl.update(start, x, y, detailControls = false)
+            assertEquals(QuadrantControl.levelAt(x, y), QuadrantControl.volumeOf(l), eps)
+            assertEquals(EngineParams(), QuadrantControl.toParams(l))
+        }
+    }
+
+    @Test
+    fun detailControlsChangeOnlyTheQuadrantUnderTheKnob() {
+        val start = QuadrantControl.initialLevels()
+        val l = QuadrantControl.update(start, 0.3f, 0.4f, detailControls = true)         // 아래 오른쪽 = 템포
+        assertEquals(0.5f, l[Quadrant.Tempo.ordinal], eps)
+        assertEquals(QuadrantControl.volumeOf(start), QuadrantControl.volumeOf(l), eps)
+        // 축 위(경계)에서는 값이 그대로다
+        assertEquals(start.toList(), QuadrantControl.update(start, 0.01f, 0.5f, detailControls = true).toList())
+    }
+
+    @Test
+    fun updateDoesNotMutateInput() {
+        val start = QuadrantControl.initialLevels()
+        val before = start.toList()
+        QuadrantControl.update(start, 0.6f, -0.2f, detailControls = false)
+        assertEquals(before, start.toList())
+    }
+
+    @Test
     fun levelsMapToParams() {
         val levels = QuadrantControl.initialLevels()
         levels[Quadrant.Tempo.ordinal] = 0.75f
