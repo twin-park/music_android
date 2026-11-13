@@ -1,5 +1,6 @@
 package com.twinpark.music.sensing
 
+import com.twinpark.music.car.AppDriving
 import com.twinpark.music.domain.DebugSoundSensor
 import com.twinpark.music.domain.NoSoundClassifier
 import com.twinpark.music.domain.SoundClassifier
@@ -12,5 +13,5 @@ object AppClassifier {
 
 /** 이 앱이 쓰는 입력들. */
 object AppSensors {
-    val all: List<SoundSensor> = listOf(DebugSoundSensor, MicSoundSensor)
+    val all: List<SoundSensor> = listOf(DebugSoundSensor, MicSoundSensor, DrivingSoundSensor { AppDriving.state })
 }

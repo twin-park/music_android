@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import com.twinpark.music.car.CarPropertySource
 import com.twinpark.music.sensing.MicSoundSensor
 import com.twinpark.music.weather.PleosLocationSource
 import com.twinpark.music.ui.screen.MusicScreen
@@ -40,6 +41,7 @@ class MainActivity : ComponentActivity() {
         val wanted = buildList {
             if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
             add(PleosLocationSource.PERMISSION)
+            add(CarPropertySource.SPEED_PERMISSION)
             if (BuildConfig.MIC_SENSING) add(Manifest.permission.RECORD_AUDIO)
         }
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
