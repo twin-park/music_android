@@ -76,6 +76,35 @@ class QuadrantControlTest {
     }
 
     @Test
+    fun restoreVolumeUsesSavedValue() {
+        assertEquals(0.3f, QuadrantControl.restoreVolume(0.3f), eps)
+        assertEquals(0f, QuadrantControl.restoreVolume(0f), eps)
+        assertEquals(1f, QuadrantControl.restoreVolume(1f), eps)
+    }
+
+    @Test
+    fun restoreVolumeFallsBackWhenMissingOrBroken() {
+        assertEquals(QuadrantControl.INITIAL_VOLUME, QuadrantControl.restoreVolume(null), eps)
+        assertEquals(QuadrantControl.INITIAL_VOLUME, QuadrantControl.restoreVolume(Float.NaN), eps)
+        assertEquals(QuadrantControl.INITIAL_VOLUME, QuadrantControl.restoreVolume(Float.POSITIVE_INFINITY), eps)
+    }
+
+    @Test
+    fun restoreVolumeClampsOutOfRange() {
+        assertEquals(1f, QuadrantControl.restoreVolume(1.8f), eps)
+        assertEquals(0f, QuadrantControl.restoreVolume(-0.4f), eps)
+    }
+
+    @Test
+    fun startingStateFollowsTheGivenVolume() {
+        val levels = QuadrantControl.initialLevels(0.3f)
+        assertEquals(0.3f, QuadrantControl.volumeOf(levels), eps)
+        assertEquals(EngineParams(), QuadrantControl.toParams(levels))
+        val (x, y) = QuadrantControl.initialPos(0.3f)
+        assertEquals(0.3f, QuadrantControl.levelAt(x, y), eps)
+    }
+
+    @Test
     fun levelsMapToParams() {
         val levels = QuadrantControl.initialLevels()
         levels[Quadrant.Tempo.ordinal] = 0.75f
