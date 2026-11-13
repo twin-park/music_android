@@ -14,6 +14,10 @@
     <!-- 차량 속도와 기어(안드로이드 차량 속성). 속도는 실행 중 허용이 필요하고 허용하지 않으면 값 없이 동작한다 -->
     <uses-permission android:name="android.car.permission.CAR_SPEED" />
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <!-- Pleos Vehicle SDK: 기어와 와이퍼 상태를 읽는다(모두 일반 등급 권한) -->
+    <uses-permission android:name="ai.pleos.playground.service.vehicle.VEHICLE_BINDING" />
+    <uses-permission android:name="pleos.car.permission.CAR_WINDOWS" />
+    <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
     <!-- SDK가 차량 전용(필수)으로 선언하는 것을 폰에서도 설치할 수 있게 완화한다 -->
     <uses-feature
         android:name="android.hardware.type.automotive"

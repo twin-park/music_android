@@ -107,11 +107,12 @@ fun MusicScreen(modifier: Modifier = Modifier, engine: MusicEngine = BgmControll
     // 오브와 하늘 장면은 음악 분위기가 아니라 바깥 날씨(시간대, 비)가 고른다. DEV 패널이 정한 수동 값이 없으면 기기 시계를 따른다.
     val manualWeather by WeatherSource.manual.collectAsState()
     val weatherReport by WeatherSource.report.collectAsState()
+    val wipersOn by WeatherSource.wipersOn.collectAsState()
     val appContext = LocalContext.current
     LaunchedEffect(Unit) { AppWeather.run(appContext) }
     var clockTick by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) { while (true) { delay(60_000); clockTick++ } }          // 시간대가 넘어가는 순간을 따라간다
-    val weatherNow = remember(manualWeather, weatherReport, clockTick) { WeatherSource.resolve(manualWeather, report = weatherReport) }
+    val weatherNow = remember(manualWeather, weatherReport, clockTick, wipersOn) { WeatherSource.resolve(manualWeather, report = weatherReport, wipersOn = wipersOn) }
     val mood = remember(weatherNow) { weatherNow.scene() }
     val skyColors = mood.palette.sky.mapIndexed { i, c -> animateColorAsState(c, tween(1500), label = "bg$i").value }
     var sensed by remember { mutableStateOf(emptySet<String>()) }        // 디버그: 귀가 들은 것으로 치는 단어들

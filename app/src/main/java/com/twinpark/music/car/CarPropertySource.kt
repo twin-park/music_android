@@ -1,7 +1,6 @@
 package com.twinpark.music.car
 
 import android.car.Car
-import android.car.VehicleGear
 import android.car.VehiclePropertyIds
 import android.car.hardware.CarPropertyValue
 import android.car.hardware.property.CarPropertyManager
@@ -10,7 +9,6 @@ import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.twinpark.music.domain.DrivingGear
 import com.twinpark.music.domain.DrivingSource
 import com.twinpark.music.domain.DrivingState
 import com.twinpark.music.domain.NoDrivingSource
@@ -18,7 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** 안드로이드 차량 속성(`CarPropertyManager`)에서 속도와 기어를 받는다. 차량이 지원하지 않는 속성은 null로 둔다. */
+/** 안드로이드 차량 속성(`CarPropertyManager`)에서 현재 속도를 받는다. Pleos SDK(Vehicle, NaviHelper, FusedLocation)에는 현재 속도가 없다. 기어는 [PleosVehicleSource]가 받는다. */
 class CarPropertySource private constructor(private val context: Context) : DrivingSource {
     private val _state = MutableStateFlow(DrivingState())
     override val state: StateFlow<DrivingState> = _state.asStateFlow()
@@ -49,8 +47,8 @@ class CarPropertySource private constructor(private val context: Context) : Driv
         val properties = connected.getCarManager(Car.PROPERTY_SERVICE) as? CarPropertyManager ?: return
         manager = properties
         val supported = properties.propertyList.map { it.propertyId }.toSet()
-        Log.i(TAG, "지원 속성 ${supported.size}개, 속도=${VehiclePropertyIds.PERF_VEHICLE_SPEED in supported}, 기어=${VehiclePropertyIds.GEAR_SELECTION in supported}")
-        for (id in listOf(VehiclePropertyIds.PERF_VEHICLE_SPEED, VehiclePropertyIds.GEAR_SELECTION)) {
+        Log.i(TAG, "지원 속성 ${supported.size}개, 속도=${VehiclePropertyIds.PERF_VEHICLE_SPEED in supported}")
+        for (id in listOf(VehiclePropertyIds.PERF_VEHICLE_SPEED)) {
             if (id !in supported) continue
             runCatching {
                 properties.registerCallback(callback, id, CarPropertyManager.SENSOR_RATE_NORMAL)
@@ -65,10 +63,6 @@ class CarPropertySource private constructor(private val context: Context) : Driv
             VehiclePropertyIds.PERF_VEHICLE_SPEED -> {
                 val ms = value.value as? Float ?: return
                 _state.value = _state.value.copy(speedKmh = ms * MS_TO_KMH)
-            }
-            VehiclePropertyIds.GEAR_SELECTION -> {
-                val gear = (value.value as? Int)?.let(::gearOf)
-                _state.value = _state.value.copy(gear = gear)
             }
         }
         if (_state.value.moving != before) Log.i(TAG, "주행 상태 ${if (_state.value.moving) "달림" else "멈춤"}: ${_state.value}")
