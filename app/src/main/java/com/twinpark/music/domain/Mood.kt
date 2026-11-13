@@ -40,7 +40,7 @@ data class Mood(
     val cloudDensity: Float,
     /**
      * 이 분위기에 대응하는 오브 시안(포즈) 번호. 0 초록(20%), 1 보라(30%), 2 파랑(50%), 3 주황(70%), 4 하늘/노랑(90%), 5 구리빛(눈 오는 밤).
-     * 순서는 `OrbPoses`와 `assets/orb_poses.bin`의 포즈 순서와 같다.
+     * 순서는 `OrbStyles.ALL`과 `assets/orb_poses.bin`의 포즈 순서와 같다.
      */
     val orbPose: Int,
     /** 오른쪽 패널의 WEATHER DETAIL 값. 지금은 분위기별 고정값이고, 나중에 실제 날씨 데이터가 대신한다. */

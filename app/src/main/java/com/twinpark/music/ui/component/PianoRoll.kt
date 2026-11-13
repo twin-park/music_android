@@ -218,7 +218,7 @@ private const val WHITE_COUNT = 36    // C2..C7 사이 흰 건반 수
 private val BLACK = setOf(1, 3, 6, 8, 10)
 private const val SPARKS = 7          // 음 하나가 닿을 때 튀는 불꽃 수
 // 화면 위에서 건반까지 내려오는 시간(초). 엔진이 피아노 화면에서는 음을 0.7초 앞서 알려 주므로(BgmController.setPianoLead), 이 값을 그보다 짧게 잡아
-// 음이 화면 위 바깥에서 출발해 안으로 들어오게 한다(0.55초면 알려진 순간 화면 높이의 약 27% 위 바깥에 있다). 이전 0.8초는 음이 위쪽 안에서 갑자기 생겼다.
+// 음이 화면 위 바깥에서 출발해 안으로 들어오게 한다(0.55초면 알려진 순간 화면 높이의 약 27% 위 바깥에 있다).
 private const val FALL_S = 0.55f
 private const val ENTER_FADE = 0.12f  // 위 가장자리에서 화면 높이의 이만큼 들어오는 동안 서서히 나타난다
 private const val KEEP_S = 0.5        // 닿은 뒤에도 이만큼 보관(건반 불빛과 막대가 사라질 때까지)
