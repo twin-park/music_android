@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import com.twinpark.music.domain.Mood
+import com.twinpark.music.ui.theme.palette
 import kotlin.math.PI
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -140,11 +141,11 @@ fun CloudKnob(
     // 분위기에 따라 하늘과 구름 색이 부드럽게 바뀐다. (sky 개수는 항상 같아야 한다)
     val colorSpec = tween<Color>(durationMillis = 1500, easing = FastOutSlowInEasing)
     val floatSpec = tween<Float>(durationMillis = 1500, easing = FastOutSlowInEasing)
-    val sky = mood.sky.mapIndexed { i, c -> animateColorAsState(c, colorSpec, label = "sky$i") }
-    val glow = animateColorAsState(mood.glow, colorSpec, label = "glow")
-    val lit = animateColorAsState(mood.cloudLit, colorSpec, label = "lit")
-    val shade = animateColorAsState(mood.cloudShade, colorSpec, label = "shade")
-    val warm = animateColorAsState(mood.cloudWarm, colorSpec, label = "warm")
+    val sky = mood.palette.sky.mapIndexed { i, c -> animateColorAsState(c, colorSpec, label = "sky$i") }
+    val glow = animateColorAsState(mood.palette.glow, colorSpec, label = "glow")
+    val lit = animateColorAsState(mood.palette.cloudLit, colorSpec, label = "lit")
+    val shade = animateColorAsState(mood.palette.cloudShade, colorSpec, label = "shade")
+    val warm = animateColorAsState(mood.palette.cloudWarm, colorSpec, label = "warm")
     val cloudDensity = animateFloatAsState(mood.cloudDensity, floatSpec, label = "density")
 
     // 구름이 노브에 밀려나는 연출. 스프링으로 천천히 따라온다.
