@@ -6,6 +6,9 @@ data class GeoPoint(val lat: Double, val lon: Double)
 
 fun interface LocationSource {
     fun current(): GeoPoint
+
+    /** 실제 위치를 기다리는 중이면 true. 이 동안 [current]는 대체 좌표를 돌려준다. */
+    val pending: Boolean get() = false
 }
 
 interface WeatherProvider {

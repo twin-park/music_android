@@ -9,6 +9,13 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- 현재 날씨(OpenWeatherMap)를 받는다. 키가 없으면 요청하지 않는다 -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 차량 위치(Pleos FusedLocation)로 그 자리의 날씨를 받는다. 허용하지 않으면 설정한 좌표를 쓴다 -->
+    <uses-permission android:name="pleos.car.permission.FUSED_LOCATION" />
+    <!-- SDK가 차량 전용(필수)으로 선언하는 것을 폰에서도 설치할 수 있게 완화한다 -->
+    <uses-feature
+        android:name="android.hardware.type.automotive"
+        android:required="false"
+        tools:node="replace" />
 
     <application
         android:allowBackup="true"
