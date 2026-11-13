@@ -1,6 +1,8 @@
 package com.twinpark.music.audio
 
+import com.twinpark.music.domain.AppSensors
 import com.twinpark.music.domain.DebugSoundSensor
+import com.twinpark.music.domain.heardAll
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -40,6 +42,7 @@ class BgmService : Service() {
     private var pausedByFocus = false
     private var ending = false
     private var notifyJob: Job? = null
+    private var senseJob: Job? = null
 
     private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
         Log.i(TAG, "오디오 포커스 변화: ${focusName(change)}")
@@ -95,6 +98,12 @@ class BgmService : Service() {
     private fun begin() {
         if (!requestFocus()) Log.w(TAG, "오디오 포커스를 얻지 못함")
         BgmController.start(applicationContext)
+        if (senseJob == null) senseJob = scope.launch(Dispatchers.Main) {
+            while (true) {
+                SituationDirector.observe(AppSensors.all.heardAll())
+                delay(SENSE_INTERVAL_MS)
+            }
+        }
         if (notifyJob == null) notifyJob = scope.launch {
             while (true) {                                  // 알림 글자를 지금 곡 상태로 갱신
                 refreshNotification()
@@ -211,6 +220,7 @@ class BgmService : Service() {
         private const val TAG = "BgmService"
         private const val CHANNEL_ID = "bgm"
         private const val NOTIFICATION_ID = 1
+        private const val SENSE_INTERVAL_MS = 2000L
         const val ACTION_TOGGLE = "com.twinpark.music.action.TOGGLE"
         const val ACTION_STOP = "com.twinpark.music.action.STOP"
         private const val DEBUG_WORDS_ACTION = "com.twinpark.music.DEBUG_WORDS"
