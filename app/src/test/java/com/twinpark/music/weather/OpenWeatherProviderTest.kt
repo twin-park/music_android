@@ -4,7 +4,11 @@ import com.twinpark.music.domain.GeoPoint
 import com.twinpark.music.domain.LocationSource
 import com.twinpark.music.domain.WeatherProvider
 import com.twinpark.music.domain.WeatherReport
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -96,5 +100,36 @@ class WeatherUpdaterTest {
         val received = mutableListOf<WeatherReport>()
         assertFalse(WeatherUpdater(provider, here, received::add).refreshOnce())
         assertTrue(received.isEmpty())
+    }
+
+    private class MovableLocation(var point: GeoPoint, var waiting: Boolean) : LocationSource {
+        override fun current() = point
+        override val pending get() = waiting
+    }
+
+    @Test
+    fun asksAgainSoonWhileTheRealLocationIsStillPending() = runTest {
+        val location = MovableLocation(GeoPoint(37.5, 127.0), waiting = true)
+        val asked = mutableListOf<GeoPoint>()
+        val provider = object : WeatherProvider {
+            override suspend fun current(at: GeoPoint): WeatherReport? = report.also { asked += at }
+        }
+        val job = launch { WeatherUpdater(provider, location, {}, refreshMs = 900_000, retryMs = 60_000).run() }
+        runCurrent()
+        assertEquals(listOf(GeoPoint(37.5, 127.0)), asked)
+
+        location.point = GeoPoint(35.1, 129.0)
+        location.waiting = false
+        advanceTimeBy(60_001)
+        runCurrent()
+        assertEquals(listOf(GeoPoint(37.5, 127.0), GeoPoint(35.1, 129.0)), asked)
+
+        advanceTimeBy(800_000)
+        runCurrent()
+        assertEquals("실제 위치로 받은 뒤에는 15분 간격", 2, asked.size)
+        advanceTimeBy(100_001)
+        runCurrent()
+        assertEquals(3, asked.size)
+        job.cancel()
     }
 }
