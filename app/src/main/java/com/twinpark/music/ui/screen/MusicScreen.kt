@@ -67,8 +67,9 @@ import com.twinpark.music.audio.SituationDirector
 import com.twinpark.music.domain.Mood
 import com.twinpark.music.ui.theme.AppFonts
 import com.twinpark.music.domain.TimeOfDay
-import com.twinpark.music.domain.VolumeStore
 import com.twinpark.music.domain.WeatherSource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.twinpark.music.settings.PreferencesVolumeStore
 import com.twinpark.music.domain.DebugSoundSensor
 import com.twinpark.music.weather.AppWeather
@@ -119,16 +120,9 @@ fun MusicScreen(modifier: Modifier = Modifier, engine: MusicEngine = BgmControll
     val lensBase = if (precipitation == Precipitation.Rain) rainBase else null
     val rainAgsl = rememberRainShaderSource()
     val weatherClock = rememberWeatherClock(active = !reduced && precipitation != Precipitation.None)
-    // 구획(ECHO, VOLUME, PITCH, TEMPO)마다 자기 값(0..1)을 기억한다. 노브가 놓인 구획의 값만 바뀌고 서로 영향이 없다.
     val context = LocalContext.current
-    val volumeStore: VolumeStore = remember { PreferencesVolumeStore(context) }
-    val savedVolume = remember { com.twinpark.music.domain.QuadrantControl.restoreVolume(volumeStore.load()) }
-    var quadrantLevels by remember { mutableStateOf(com.twinpark.music.domain.QuadrantControl.initialLevels(savedVolume)) }
-    val volume = com.twinpark.music.domain.QuadrantControl.volumeOf(quadrantLevels)
-    LaunchedEffect(volume) {
-        delay(VOLUME_SAVE_DELAY_MS)
-        volumeStore.save(volume)
-    }
+    val viewModel: MusicViewModel = viewModel(factory = remember(engine) { MusicViewModel.factory(engine, PreferencesVolumeStore(context)) })
+    val quadrantLevels by viewModel.levels.collectAsStateWithLifecycle()
 
     // 배경음악: 엔진은 포그라운드 서비스가 쥐고 있어서 화면을 닫아도 계속 연주한다. 화면은 상태를 보여 주고 요청만 보낸다.
     val bgmState by engine.state.collectAsState()
@@ -136,8 +130,6 @@ fun MusicScreen(modifier: Modifier = Modifier, engine: MusicEngine = BgmControll
     var status by remember { mutableStateOf<BgmStatus?>(null) }
     LaunchedEffect(Unit) { BgmService.start(context) }
     LaunchedEffect(sensed) { DebugSoundSensor.fromScreen = sensed }
-    // 음량 노브 0..1은 소리 크기에 제곱을 취해 귀에 고르게 느껴지게 한다
-    LaunchedEffect(volume) { engine.setVolume(volume * volume) }
 
     // 구획 값에서 나온 엔진 조절량(음량 제외). 노브를 만지기 전에는 0이라 분위기 기본값 그대로다.
     // 값이 바뀌면 0.9초에 걸쳐 따라간다(음악이 갑자기 달라지지 않게).
@@ -171,11 +163,11 @@ fun MusicScreen(modifier: Modifier = Modifier, engine: MusicEngine = BgmControll
         val knob: @Composable (Modifier, androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp) -> Unit = { m, corner, endInset ->
             Box(m) {
                 CloudKnob(
-                    initialPos = com.twinpark.music.domain.QuadrantControl.initialPos(savedVolume).let { androidx.compose.ui.geometry.Offset(it.first, it.second) },
+                    initialPos = com.twinpark.music.domain.QuadrantControl.initialPos(viewModel.startVolume).let { androidx.compose.ui.geometry.Offset(it.first, it.second) },
                     quadrantLevels = quadrantLevels,
                     quadrantGuides = com.twinpark.music.domain.QuadrantControl.DETAIL_CONTROLS,
                     onPositionChange = { x, y ->
-                        quadrantLevels = com.twinpark.music.domain.QuadrantControl.update(quadrantLevels, x, y)
+                        viewModel.onKnobMoved(x, y)
                     },
                     mood = mood,
                     reducedMotion = reduced,
@@ -386,7 +378,6 @@ private fun ui(base: Float): TextUnit = (base * LocalUiScale.current).sp
 
 /** 이 높이보다 낮은 패널은 컴팩트로 그린다(날씨 표 2열, 낮은 버튼). */
 private val COMPACT_HEIGHT = 480.dp
-private const val VOLUME_SAVE_DELAY_MS = 500L
 
 /** Figma의 WEATHER DETAIL: 제목 + 가로선, 왼쪽에 4줄 값, 오른쪽에 테두리 빈 박스. */
 @Composable
