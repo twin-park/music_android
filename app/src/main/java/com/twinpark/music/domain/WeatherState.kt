@@ -53,6 +53,15 @@ object WeatherSource {
         _manual.value = state
     }
 
+    private val _wipersOn = MutableStateFlow(false)
+
+    /** 차량 와이퍼가 켜져 있는가. 켜져 있으면 날씨 값이 없거나 늦어도 비로 본다. */
+    val wipersOn: StateFlow<Boolean> = _wipersOn
+
+    fun setWipersOn(on: Boolean) {
+        _wipersOn.value = on
+    }
+
     private val _report = MutableStateFlow<WeatherReport?>(null)
 
     val report: StateFlow<WeatherReport?> = _report
@@ -62,12 +71,12 @@ object WeatherSource {
     }
 
     /** 시간대는 기기 시계, 비와 눈은 신선한([WeatherReport.isFresh]) 날씨 값이 있을 때만 반영한다. */
-    fun auto(cal: Calendar = Calendar.getInstance(), report: WeatherReport? = null, nowMs: Long = System.currentTimeMillis()): WeatherState {
+    fun auto(cal: Calendar = Calendar.getInstance(), report: WeatherReport? = null, nowMs: Long = System.currentTimeMillis(), wipersOn: Boolean = false): WeatherState {
         val time = TimeOfDay.now(cal)
-        return if (report != null && report.isFresh(nowMs)) WeatherState(time, report.raining, report.snowing, report.toDetail())
-        else WeatherState(time, raining = false)
+        return if (report != null && report.isFresh(nowMs)) WeatherState(time, report.raining || wipersOn, report.snowing, report.toDetail())
+        else WeatherState(time, raining = wipersOn)
     }
 
-    fun resolve(manual: WeatherState?, cal: Calendar = Calendar.getInstance(), report: WeatherReport? = null, nowMs: Long = System.currentTimeMillis()): WeatherState =
-        manual ?: auto(cal, report, nowMs)
+    fun resolve(manual: WeatherState?, cal: Calendar = Calendar.getInstance(), report: WeatherReport? = null, nowMs: Long = System.currentTimeMillis(), wipersOn: Boolean = false): WeatherState =
+        manual ?: auto(cal, report, nowMs, wipersOn)
 }
