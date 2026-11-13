@@ -81,4 +81,13 @@ class WeatherStateTest {
         val manual = WeatherState(TimeOfDay.NIGHT, snowing = true)
         assertEquals(manual, WeatherSource.resolve(manual, noon, rainReport, nowMs = 2_000L))
     }
+
+    @Test fun 분위기_순환은_목록_끝에서_처음으로_돌아간다() {
+        val ids = Mood.EngineMoods.map { it.id }
+        assertEquals(ids[1], Mood.stepEngineId(ids[0], 1))
+        assertEquals(ids[0], Mood.stepEngineId(ids.last(), 1))
+        assertEquals(ids.last(), Mood.stepEngineId(ids[0], -1))
+        assertEquals(ids[0], Mood.stepEngineId("모르는ID", 1))
+        assertEquals(ids[0], Mood.stepEngineId(null, -1))
+    }
 }

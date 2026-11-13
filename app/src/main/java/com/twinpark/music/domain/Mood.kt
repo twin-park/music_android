@@ -117,6 +117,13 @@ data class Mood(
             EngineMood("클래식피아노", "클래식 피아노"), EngineMood("현악앙상블", "현악 앙상블"), EngineMood("클래식왈츠", "클래식 왈츠"),
         )
 
+        /** [current]에서 [step]칸 떨어진 엔진 분위기 ID. 목록 끝에서는 처음으로 돌아가고, 모르는 ID면 첫 분위기다. */
+        fun stepEngineId(current: String?, step: Int): String {
+            val ids = EngineMoods.map { it.id }
+            val index = ids.indexOf(current)
+            return if (index < 0) ids.first() else ids[Math.floorMod(index + step, ids.size)]
+        }
+
         /** 엔진 분위기에 맞는 오브 장면. 모르는 ID면 잔잔(파랑). */
         fun forEngine(engineId: String?): Mood = Presets.firstOrNull { engineId in it.engineIds } ?: Calm
 

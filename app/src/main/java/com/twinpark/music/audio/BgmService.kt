@@ -89,6 +89,8 @@ class BgmService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
         when (intent?.action) {
             ACTION_TOGGLE -> toggle()
+            ACTION_PLAY -> if (BgmController.paused.value) toggle()
+            ACTION_PAUSE -> if (!BgmController.paused.value) toggle()
             ACTION_STOP -> finish()
             else -> begin()
         }
@@ -142,6 +144,7 @@ class BgmService : Service() {
     }
 
     private fun stopSelfAfterEnd() {
+        BgmMediaSession.deactivate()
         abandonFocus()
         BgmController.shutdown()
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -203,6 +206,10 @@ class BgmService : Service() {
 
     private fun refreshNotification() {
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, buildNotification())
+        BgmMediaSession.update(
+            applicationContext,
+            PlaybackModel.from(BgmController.state.value, BgmController.paused.value, BgmController.status()),
+        )
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -223,6 +230,8 @@ class BgmService : Service() {
         private const val SENSE_INTERVAL_MS = 2000L
         const val ACTION_TOGGLE = "com.twinpark.music.action.TOGGLE"
         const val ACTION_STOP = "com.twinpark.music.action.STOP"
+        const val ACTION_PLAY = "com.twinpark.music.action.PLAY"
+        const val ACTION_PAUSE = "com.twinpark.music.action.PAUSE"
         private const val DEBUG_WORDS_ACTION = "com.twinpark.music.DEBUG_WORDS"
 
         /** 서비스를 시작한다(이미 돌고 있으면 그대로). 화면이 앞에 있을 때 불러야 한다. */
