@@ -15,29 +15,29 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.runtime.withFrameNanos
-import com.twinpark.music.audio.BgmController
+import com.twinpark.music.audio.MusicEngine
 
 /**
  * 피아노 화면(선택 기능, 개발 패널에서 켠다): 건반 위로 연주되는 음이 내려와 닿는다. Figma 피아노 화면(18:484)처럼 둥근 막대에 후광과 긴 잔상(빛줄기)이 있고,
  * 닿는 곳에 빛 번짐과 불꽃이 튀며, 눌린 건반이 아래로 번지며 빛나고 위로 빛기둥이 솟는다. 색은 장면(오브)의 능선 색을 따른다.
  *
- * 엔진이 재생 위치보다 조금 앞서 알려 주는 음(`BgmController.drainNotes`)을 받아, 닿는 순간이 소리 나는 순간이 되게 그린다.
+ * 엔진이 재생 위치보다 조금 앞서 알려 주는 음([MusicEngine.drainNotes])을 받아, 닿는 순간이 소리 나는 순간이 되게 그린다.
  * 음은 화면 위 바깥에서 출발해 안으로 들어오며(낙하 시간 [FALL_S]가 엔진 앞서기 0.7초보다 짧다) 들어오는 동안 서서히 나타난다.
  * 모든 음을 61건반(C2..C7) 안으로 옥타브를 접어 보여 준다. 타악기는 엔진 쪽에서 이미 뺀다.
  * 불꽃은 따로 상태를 두지 않고 음의 시작 프레임으로 만든 값(해시)과 경과 시간만으로 그린다.
  */
 @Composable
-fun PianoRoll(tint: Color, modifier: Modifier = Modifier) {
+fun PianoRoll(tint: Color, engine: MusicEngine, modifier: Modifier = Modifier) {
     val notes = remember { ArrayList<Long>() }
     var tick by remember { mutableLongStateOf(0L) }
     androidx.compose.runtime.DisposableEffect(Unit) {
-        BgmController.setPianoLead(true)                            // 보이는 동안만 음을 일찍 알려 받는다
-        onDispose { BgmController.setPianoLead(false) }
+        engine.setPianoLead(true)                            // 보이는 동안만 음을 일찍 알려 받는다
+        onDispose { engine.setPianoLead(false) }
     }
     LaunchedEffect(Unit) {
         while (true) withFrameNanos { now ->
-            for (v in BgmController.drainNotes()) notes.add(v)
-            val played = BgmController.playedFrame()
+            for (v in engine.drainNotes()) notes.add(v)
+            val played = engine.playedFrame()
             notes.removeAll { ((it shr 16) - played) < -SR * KEEP_S }
             tick = now
         }
@@ -53,7 +53,7 @@ fun PianoRoll(tint: Color, modifier: Modifier = Modifier) {
         val ww = w / WHITE_COUNT
         val bw = ww * 0.62f
         val bh = keysH * 0.62f
-        val played = BgmController.playedFrame()
+        val played = engine.playedFrame()
         val speed = rollH / FALL_S                                    // 초당 내려가는 거리(px). 화면 안을 FALL_S 초에 지난다
         val glowColor = lerp(tint, Color.White, 0.35f)                // 막대 머리와 불빛은 능선 색보다 밝게
 
@@ -217,7 +217,7 @@ private const val HIGH = 96           // C7
 private const val WHITE_COUNT = 36    // C2..C7 사이 흰 건반 수
 private val BLACK = setOf(1, 3, 6, 8, 10)
 private const val SPARKS = 7          // 음 하나가 닿을 때 튀는 불꽃 수
-// 화면 위에서 건반까지 내려오는 시간(초). 엔진이 피아노 화면에서는 음을 0.7초 앞서 알려 주므로(BgmController.setPianoLead), 이 값을 그보다 짧게 잡아
+// 화면 위에서 건반까지 내려오는 시간(초). 엔진이 피아노 화면에서는 음을 0.7초 앞서 알려 주므로([MusicEngine.setPianoLead]), 이 값을 그보다 짧게 잡아
 // 음이 화면 위 바깥에서 출발해 안으로 들어오게 한다(0.55초면 알려진 순간 화면 높이의 약 27% 위 바깥에 있다).
 private const val FALL_S = 0.55f
 private const val ENTER_FADE = 0.12f  // 위 가장자리에서 화면 높이의 이만큼 들어오는 동안 서서히 나타난다
