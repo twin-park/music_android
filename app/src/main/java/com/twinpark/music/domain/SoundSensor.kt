@@ -15,7 +15,3 @@ object DebugSoundSensor : SoundSensor {
 
 fun List<SoundSensor>.heardAll(): Set<String> = flatMapTo(mutableSetOf()) { it.heard() }
 
-/** 이 앱이 쓰는 입력들. 소리 인식 모델이 생기면 여기에 추가한다. */
-object AppSensors {
-    val all: List<SoundSensor> = listOf(DebugSoundSensor)
-}

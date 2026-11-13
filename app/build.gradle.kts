@@ -15,7 +15,8 @@ val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
-fun localProp(name: String, default: String = ""): String = (localProps.getProperty(name) ?: default).trim()
+fun localProp(name: String, default: String = ""): String =
+    ((findProperty(name) as String?) ?: localProps.getProperty(name) ?: default).trim()
 
 android {
     namespace = "com.twinpark.music"
@@ -33,6 +34,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // 마이크로 소리를 듣는 기능. 기본 꺼짐이고 마이크 권한은 디버그 빌드에만 있다. 켜려면 -PMIC_SENSING=true
+        buildConfigField("boolean", "MIC_SENSING", localProp("MIC_SENSING", "false"))
         buildConfigField("String", "OPENWEATHER_API_KEY", "\"${localProp("OPENWEATHER_API_KEY")}\"")
         buildConfigField("double", "WEATHER_LAT", localProp("WEATHER_LAT", "37.5665"))      // 위치는 차량 위치 SDK(FusedLocation)가 준비되면 그쪽 값으로 바꾼다
         buildConfigField("double", "WEATHER_LON", localProp("WEATHER_LON", "126.9780"))
