@@ -41,6 +41,14 @@
             android:name=".audio.BgmService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+        <receiver
+            android:name=".gleo.GleoActionReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="SET_MUSIC_MOOD" />
+                <action android:name="SET_SLEEP_MODE" />
+            </intent-filter>
+        </receiver>
         <service
             android:name=".audio.BgmBrowserService"
             android:exported="true">

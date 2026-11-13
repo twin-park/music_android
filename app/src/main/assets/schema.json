@@ -1,0 +1,57 @@
+{
+  "packageName": "com.twinpark.music",
+  "appDescription": "An AI music app that plays background music generated in real time and adapts its mood to the car and the people in it.",
+  "version": "1.0",
+  "actionCalls": [
+    {
+      "type": "function",
+      "function": {
+        "component": "service",
+        "name": "SET_MUSIC_MOOD",
+        "description": "Changes the mood of the background music that the app is currently playing.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "mood": {
+              "type": "string",
+              "description": "The mood to switch the music to.",
+              "enum": [
+                "rainy_day",
+                "calm_jazz",
+                "night_drive",
+                "cheerful_conversation",
+                "seaside_bossa_nova",
+                "lullaby",
+                "soothing",
+                "comforting",
+                "day_drive",
+                "classical_piano",
+                "string_ensemble",
+                "classical_waltz"
+              ]
+            }
+          },
+          "required": ["mood"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "component": "service",
+        "name": "SET_SLEEP_MODE",
+        "description": "Turns a quiet, lullaby-like music mode on or off for sleeping passengers.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether the quiet sleeping mode should be on."
+            }
+          },
+          "required": ["enabled"]
+        }
+      }
+    }
+  ]
+}
