@@ -1,5 +1,6 @@
 package com.twinpark.music.audio
 
+import com.twinpark.music.car.AppDriving
 import com.twinpark.music.sensing.AppSensors
 import com.twinpark.music.domain.DebugSoundSensor
 import com.twinpark.music.domain.heardAll
@@ -100,6 +101,7 @@ class BgmService : Service() {
     private fun begin() {
         if (!requestFocus()) Log.w(TAG, "오디오 포커스를 얻지 못함")
         BgmController.start(applicationContext)
+        AppDriving.start(applicationContext)
         if (senseJob == null) senseJob = scope.launch(Dispatchers.Main) {
             while (true) {
                 SituationDirector.observe(AppSensors.all.heardAll())
@@ -144,6 +146,7 @@ class BgmService : Service() {
     }
 
     private fun stopSelfAfterEnd() {
+        AppDriving.stop()
         BgmMediaSession.deactivate()
         abandonFocus()
         BgmController.shutdown()
