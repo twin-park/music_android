@@ -66,6 +66,7 @@ import com.twinpark.music.audio.MusicEngine
 import com.twinpark.music.audio.SituationDirector
 import com.twinpark.music.domain.Mood
 import com.twinpark.music.ui.theme.AppFonts
+import com.twinpark.music.ui.theme.palette
 import com.twinpark.music.domain.TimeOfDay
 import com.twinpark.music.domain.WeatherSource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -109,7 +110,7 @@ fun MusicScreen(modifier: Modifier = Modifier, engine: MusicEngine = BgmControll
     LaunchedEffect(Unit) { while (true) { delay(60_000); clockTick++ } }          // 시간대가 넘어가는 순간을 따라간다
     val weatherNow = remember(manualWeather, weatherReport, clockTick) { WeatherSource.resolve(manualWeather, report = weatherReport) }
     val mood = remember(weatherNow) { weatherNow.scene() }
-    val skyColors = mood.sky.mapIndexed { i, c -> animateColorAsState(c, tween(1500), label = "bg$i").value }
+    val skyColors = mood.palette.sky.mapIndexed { i, c -> animateColorAsState(c, tween(1500), label = "bg$i").value }
     var sensed by remember { mutableStateOf(emptySet<String>()) }        // 디버그: 귀가 들은 것으로 치는 단어들
     val situation by SituationDirector.state.collectAsState()
     var reduced by remember { mutableStateOf(false) }
@@ -343,7 +344,7 @@ private fun OrbPanel(
             }
             if (piano) {
                 // 개발용 선택 화면: 반투명 건반과 내려오는 음(Figma 피아노 화면). 연주 중일 때만 음이 나온다.
-                PianoRoll(tint = mood.peak, engine = engine, modifier = Modifier.weight(1f).fillMaxWidth().heightIn(min = 90.dp))
+                PianoRoll(tint = mood.palette.peak, engine = engine, modifier = Modifier.weight(1f).fillMaxWidth().heightIn(min = 90.dp))
             } else BeadOrb(
                 // 오브 모양은 분위기(음악 종류)가 정한다. 분위기마다 Figma 시안 한 장이 대응한다.
                 pose = mood.orbPose,
