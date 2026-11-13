@@ -1,6 +1,6 @@
 package com.twinpark.music.audio
 
-import com.twinpark.music.domain.AppSensors
+import com.twinpark.music.sensing.AppSensors
 import com.twinpark.music.domain.DebugSoundSensor
 import com.twinpark.music.domain.heardAll
 import android.app.Notification

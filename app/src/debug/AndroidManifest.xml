@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 소리 인식 시험용. 릴리스 빌드에는 마이크 권한이 없다(MIC_SENSING 설정과 함께 켠다). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+</manifest>
