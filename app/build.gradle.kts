@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,6 +7,15 @@ plugins {
 }
 
 val bgmAssetsDir = layout.buildDirectory.dir("generated/bgmAssets")
+
+// 날씨 API 키와 위치는 저장소에 올라가지 않는 android/local.properties에서 읽는다(없으면 비워 둬서 날씨 연동을 끈다).
+//   OPENWEATHER_API_KEY=...   (필수 아님)   WEATHER_LAT=37.5665   WEATHER_LON=126.9780   (필수 아님, 기본 서울)
+// 앱에 넣은 키는 APK에서 꺼낼 수 있다. 대회, 시연용이며 정식 배포는 서버를 거쳐야 한다.
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun localProp(name: String, default: String = ""): String = (localProps.getProperty(name) ?: default).trim()
 
 android {
     namespace = "com.twinpark.music"
@@ -21,6 +32,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "OPENWEATHER_API_KEY", "\"${localProp("OPENWEATHER_API_KEY")}\"")
+        buildConfigField("double", "WEATHER_LAT", localProp("WEATHER_LAT", "37.5665"))      // 위치는 차량 위치 SDK(FusedLocation)가 준비되면 그쪽 값으로 바꾼다
+        buildConfigField("double", "WEATHER_LON", localProp("WEATHER_LON", "126.9780"))
 
         // 차량 BGM 엔진(C++)은 arm64 기기만 지원한다
         ndk { abiFilters += if (project.hasProperty("emuAbi")) "x86_64" else "arm64-v8a" }   // -PemuAbi: x86_64 에뮬레이터용(arm64 대신)
@@ -51,6 +66,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     // 엔진 데이터(AI 모델, 사운드폰트, 피아노 약 130MB)를 에셋 `bgm/`으로 묶는다. 이미 압축된 형식이라 다시 압축하지 않는다.
@@ -85,6 +101,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20240303")        // 날씨 응답 해석 단위 테스트용(안드로이드의 org.json은 JVM 테스트에서 동작하지 않는다)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

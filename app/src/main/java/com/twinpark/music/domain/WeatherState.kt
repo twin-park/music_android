@@ -21,8 +21,8 @@ enum class TimeOfDay(val label: String) {
     }
 }
 
-/** 바깥 날씨 입력. 지금은 시간대, 비, 눈 여부만 본다. */
-data class WeatherState(val time: TimeOfDay, val raining: Boolean = false, val snowing: Boolean = false) {
+/** [detail]은 실제 날씨 값이 있을 때 WEATHER DETAIL 표에 보일 값이다. 없으면 장면별 기본값을 쓴다. */
+data class WeatherState(val time: TimeOfDay, val raining: Boolean = false, val snowing: Boolean = false, val detail: Weather? = null) {
     /**
      * 이 날씨에 맞는 장면(오브 + 하늘). 눈이 오면 시간대와 상관없이 눈 오는 밤(구리빛), 비가 오면 비 장면(파랑),
      * 아니면 새벽 초록, 낮 청량, 황혼 주황, 밤 보라. 눈이 비보다 우선한다.
@@ -53,8 +53,21 @@ object WeatherSource {
         _manual.value = state
     }
 
-    /** 자동 값: 기기 시계의 시간대, 비는 아직 데이터가 없어 없음. */
-    fun auto(cal: Calendar = Calendar.getInstance()): WeatherState = WeatherState(TimeOfDay.now(cal), raining = false)
+    private val _report = MutableStateFlow<WeatherReport?>(null)
 
-    fun resolve(manual: WeatherState?, cal: Calendar = Calendar.getInstance()): WeatherState = manual ?: auto(cal)
+    val report: StateFlow<WeatherReport?> = _report
+
+    fun setReport(report: WeatherReport?) {
+        _report.value = report
+    }
+
+    /** 시간대는 기기 시계, 비와 눈은 신선한([WeatherReport.isFresh]) 날씨 값이 있을 때만 반영한다. */
+    fun auto(cal: Calendar = Calendar.getInstance(), report: WeatherReport? = null, nowMs: Long = System.currentTimeMillis()): WeatherState {
+        val time = TimeOfDay.now(cal)
+        return if (report != null && report.isFresh(nowMs)) WeatherState(time, report.raining, report.snowing, report.toDetail())
+        else WeatherState(time, raining = false)
+    }
+
+    fun resolve(manual: WeatherState?, cal: Calendar = Calendar.getInstance(), report: WeatherReport? = null, nowMs: Long = System.currentTimeMillis()): WeatherState =
+        manual ?: auto(cal, report, nowMs)
 }

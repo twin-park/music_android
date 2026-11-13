@@ -67,6 +67,7 @@ import com.twinpark.music.domain.Mood
 import com.twinpark.music.ui.theme.AppFonts
 import com.twinpark.music.domain.TimeOfDay
 import com.twinpark.music.domain.WeatherSource
+import com.twinpark.music.weather.AppWeather
 import com.twinpark.music.domain.WeatherState
 import com.twinpark.music.domain.TrackerState
 import com.twinpark.music.domain.Weather
@@ -97,9 +98,11 @@ fun MusicScreen(modifier: Modifier = Modifier) {
     val engineId by BgmController.moodId.collectAsState()
     // 오브와 하늘 장면은 음악 분위기가 아니라 바깥 날씨(시간대, 비)가 고른다. DEV 패널이 정한 수동 값이 없으면 기기 시계를 따른다.
     val manualWeather by WeatherSource.manual.collectAsState()
+    val weatherReport by WeatherSource.report.collectAsState()
+    LaunchedEffect(Unit) { AppWeather.updater?.run() }
     var clockTick by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) { while (true) { delay(60_000); clockTick++ } }          // 시간대가 넘어가는 순간을 따라간다
-    val weatherNow = remember(manualWeather, clockTick) { WeatherSource.resolve(manualWeather) }
+    val weatherNow = remember(manualWeather, weatherReport, clockTick) { WeatherSource.resolve(manualWeather, report = weatherReport) }
     val mood = remember(weatherNow) { weatherNow.scene() }
     val skyColors = mood.sky.mapIndexed { i, c -> animateColorAsState(c, tween(1500), label = "bg$i").value }
     var sensed by remember { mutableStateOf(emptySet<String>()) }        // 디버그: 귀가 들은 것으로 치는 단어들
@@ -196,6 +199,7 @@ fun MusicScreen(modifier: Modifier = Modifier) {
         val orb: @Composable (Modifier) -> Unit = { m ->
             OrbPanel(
                 mood = mood,
+                weather = weatherNow.detail ?: mood.weather,
                 engineId = engineId,
                 onEngineChange = { SituationDirector.manualOverride(); BgmController.requestMood(it) },
                 sensed = sensed,
@@ -262,6 +266,7 @@ fun MusicScreen(modifier: Modifier = Modifier) {
 @Composable
 private fun OrbPanel(
     mood: Mood,
+    weather: Weather,
     engineId: String,
     onEngineChange: (String) -> Unit,
     sensed: Set<String>,
@@ -350,7 +355,7 @@ private fun OrbPanel(
                 beat = beat,
                 modifier = Modifier.weight(1f).fillMaxWidth().heightIn(min = 90.dp),
             )
-            WeatherDetail(mood.weather, compact)
+            WeatherDetail(weather, compact)
         }
         // 개발용(디버그 빌드만): 접어 두었다가 펼치면 패널 위에 겹쳐 보인다. 오브 자리를 빼앗지 않는다.
         if (debuggable) {
