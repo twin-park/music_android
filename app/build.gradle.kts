@@ -81,7 +81,7 @@ android {
 // 사운드폰트와 피아노는 저장소에 없다(ai/README.md, docs/bgm-engine.md 참고). 없으면 소리 없는 앱이 만들어지므로 경고한다.
 val bgmDataSrc = rootProject.layout.projectDirectory.dir("../ai/engine/data")
 val copyBgmData by tasks.registering(Sync::class) {
-    from(bgmDataSrc) { include("chord.bin", "melody.bin", "tune.txt", "sf/**", "piano/**") }
+    from(bgmDataSrc) { include("chord.bin", "melody.bin", "tune.txt", "sf/**", "piano/**", "conductor/**", "amb/**") }   // conductor: 지휘자 규칙(JSON) · amb: 파도 · 빗소리
     // 악기 크기 보정표는 소리를 내는 쪽(TinySoundFont)에 맞춰 안드로이드 쪽에서 관리한다(ai 에는 없음)
     from(layout.projectDirectory.dir("bgm")) { include("calib_tsf.txt") }
     into(bgmAssetsDir.map { it.dir("bgm") })

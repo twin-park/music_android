@@ -13,6 +13,8 @@ add_library(carbgm SHARED
     ${ENGINE}/src/model.cpp ${ENGINE}/src/gen.cpp ${ENGINE}/src/theory.cpp ${ENGINE}/src/song.cpp
     ${ENGINE}/src/compose.cpp ${ENGINE}/src/vary.cpp ${ENGINE}/src/notation.cpp ${ENGINE}/src/dsp.cpp
     ${ENGINE}/src/piano.cpp ${ENGINE}/src/engine.cpp ${ENGINE}/src/util.cpp
+    # 지휘자(상황 → 분위기 · 악기 · 주변 소리)와 주변 소리(파도 · 비) — ai 11-13 판부터
+    ${ENGINE}/src/conductor.cpp ${ENGINE}/src/json.cpp ${ENGINE}/src/amb.cpp
     ${ENGINE}/src/ma_impl.c)
 
 target_include_directories(carbgm PRIVATE ${ENGINE}/src)

@@ -123,6 +123,27 @@ std::string to_str(JNIEnv *env, jstring s) {
     return r;
 }
 
+// 표준 UTF-8 → jstring (NewStringUTF 는 '수정 UTF-8' 이라 4바이트 글자(그림 글자)가 오면 디버그 빌드 CheckJNI 가 앱을 멈춤)
+jstring jstr(JNIEnv *env, const std::string &s) {
+    std::u16string u;
+    u.reserve(s.size());
+    for (size_t i = 0; i < s.size();) {
+        const unsigned char c = (unsigned char)s[i];
+        uint32_t cp; int n;
+        if (c < 0x80) { cp = c; n = 1; }
+        else if ((c >> 5) == 6) { cp = c & 0x1F; n = 2; }
+        else if ((c >> 4) == 14) { cp = c & 0x0F; n = 3; }
+        else if ((c >> 3) == 30) { cp = c & 0x07; n = 4; }
+        else { u.push_back(0xFFFD); i++; continue; }
+        if (i + n > s.size()) { u.push_back(0xFFFD); break; }
+        for (int k = 1; k < n; k++) cp = (cp << 6) | ((unsigned char)s[i + k] & 0x3F);
+        i += n;
+        if (cp >= 0x10000) { cp -= 0x10000; u.push_back((char16_t)(0xD800 + (cp >> 10))); u.push_back((char16_t)(0xDC00 + (cp & 0x3FF))); }
+        else u.push_back((char16_t)cp);
+    }
+    return env->NewString(reinterpret_cast<const jchar *>(u.data()), (jsize)u.size());
+}
+
 }  // namespace
 
 extern "C" {
@@ -136,7 +157,8 @@ JNIEXPORT jstring JNICALL Java_com_twinpark_music_audio_BgmNative_nativeStart(JN
     const double t0 = now_s();
     P->E.calib_name = "calib_tsf.txt";      // 사운드폰트 소리 크기가 fluidsynth 와 달라서 TinySoundFont 기준 보정표를 쓴다
     if (!P->E.init(to_str(env, jdata), &err)) return env->NewStringUTF(err.empty() ? "엔진을 시작하지 못했습니다" : err.c_str());
-    LOGI("엔진 읽기 %.1f초", now_s() - t0);
+    LOGI("엔진 읽기 %.1f초 · 지휘자 %s", now_s() - t0, P->E.cond.loaded ? "있음" : "없음");
+    P->E.auto_mode = P->E.cond.loaded;                  // 지휘자(상황 → 분위기 · 악기 · 주변 소리)가 있으면 처음부터 알아서
     P->E.play_latency = Player::kFill + .03;
     Player *p = P.get();
 
@@ -194,9 +216,18 @@ JNIEXPORT void JNICALL Java_com_twinpark_music_audio_BgmNative_nativeParams(JNIE
     std::lock_guard<std::mutex> g(g_mtx);
     if (!g_player) return;
     auto c = [](double v) { return std::max(-1.0, std::min(1.0, v)); };
-    Params p = g_player->E.get_params();
+    Engine &E = g_player->E;
+    if (E.auto_mode) {                                   // 알아서: 지휘자가 고른 조절값 위에 노브 양을 더함 (지휘자가 다시 정해도 노브는 남음)
+        Params k;
+        k.reg = c(reg); k.tempo = c(tempo); k.dens = c(dens); k.energy = c(energy); k.novelty = c(novelty); k.space = c(space);
+        Params d;
+        { std::lock_guard<std::mutex> cg(E.cond_mtx); d = E.dec.params; E.knob = k; }
+        E.set_params(E.with_knob(d));
+        return;
+    }
+    Params p = E.get_params();
     p.reg = c(reg); p.tempo = c(tempo); p.dens = c(dens); p.energy = c(energy); p.novelty = c(novelty); p.space = c(space);
-    g_player->E.set_params(p);
+    E.set_params(p);
 }
 
 JNIEXPORT void JNICALL Java_com_twinpark_music_audio_BgmNative_nativeVolume(JNIEnv *, jobject, jfloat v) {
@@ -281,6 +312,92 @@ JNIEXPORT jstring JNICALL Java_com_twinpark_music_audio_BgmNative_nativeStatus(J
     std::snprintf(b, sizeof b, "%s|%s|%s|%d|%ld|%d", st.mood_name.c_str(), st.role.c_str(), st.key.c_str(), (int)std::lround(st.bpm),
                   g_player->underruns.load(), E.live ? 1 : 0);
     return env->NewStringUTF(b);
+}
+
+// ── 지휘자: 상황 → 분위기 · 악기 · 빠르기 · 주변 소리 (ai/engine/data/conductor/*.json) ──
+//   데스크톱판 app.cpp 의 /api/situation · /api/auto · /api/say · /api/decision 과 같은 일
+
+// 알아서 시작: 지금 상황을 3초쯤 보고 지휘자가 고른 분위기로 연주 시작. 지휘자가 없으면 false (그때는 nativeMood 로)
+JNIEXPORT jboolean JNICALL Java_com_twinpark_music_audio_BgmNative_nativeAutoStart(JNIEnv *, jobject) {
+    std::lock_guard<std::mutex> g(g_mtx);
+    if (!g_player || !g_player->E.cond.loaded) return JNI_FALSE;
+    Engine &E = g_player->E;
+    E.auto_mode = true; E.user_pick_until = -1e9; E.params_at = -1e9; E.auto_start = true;
+    return JNI_TRUE;
+}
+
+// 알아서 켜기 · 끄기 (끄면 지휘자의 악기 지시를 풀고 지금 분위기를 그대로 둠)
+JNIEXPORT void JNICALL Java_com_twinpark_music_audio_BgmNative_nativeAuto(JNIEnv *, jobject, jboolean on) {
+    std::lock_guard<std::mutex> g(g_mtx);
+    if (!g_player) return;
+    Engine &E = g_player->E;
+    E.auto_mode = on && E.cond.loaded;
+    if (E.auto_mode) { E.user_pick_until = -1e9; E.params_at = -1e9; }
+    else E.set_steer(Steer());
+}
+
+// 사람이 분위기를 직접 고름: 알아서 중이면 15분은 그 분위기를 지킴 (반응 기록)
+JNIEXPORT void JNICALL Java_com_twinpark_music_audio_BgmNative_nativePick(JNIEnv *env, jobject, jstring id) {
+    std::lock_guard<std::mutex> g(g_mtx);
+    if (g_player) g_player->E.user_mood(to_str(env, id));
+}
+
+// 상황 일부 JSON — 예: {"place":{"kind":"coast"}} · {"trip":{"kind":"commute"},"time":{"slot":"morning"}} · null 은 지움. 성공하면 빈 글자, 아니면 이유
+JNIEXPORT jstring JNICALL Java_com_twinpark_music_audio_BgmNative_nativeSituation(JNIEnv *env, jobject, jstring json) {
+    std::lock_guard<std::mutex> g(g_mtx);
+    if (!g_player) return jstr(env, "엔진이 꺼져 있음");
+    std::string pe;
+    Json patch = Json::parse(to_str(env, json), &pe);
+    if (!pe.empty() || !patch.is_obj()) return jstr(env, "상황 JSON 이 아님: " + pe);
+    g_player->E.situation(patch);
+    return jstr(env, "");
+}
+
+// 상황 모두 지우기 (시연 · DEV)
+JNIEXPORT void JNICALL Java_com_twinpark_music_audio_BgmNative_nativeSituationReset(JNIEnv *, jobject) {
+    std::lock_guard<std::mutex> g(g_mtx);
+    if (!g_player) return;
+    Engine &E = g_player->E;
+    const double now = (double)E.frame.load() / SR;
+    std::lock_guard<std::mutex> cg(E.cond_mtx);
+    E.cond.sit = Json::obj_(); E.cond.clear_requests(); E.cond.reset_holds(); E.cond.update(Json::obj_(), now);
+}
+
+// 지금 상황 (지휘자가 시계 등으로 채운 칸 포함) JSON
+JNIEXPORT jstring JNICALL Java_com_twinpark_music_audio_BgmNative_nativeSituationGet(JNIEnv *env, jobject) {
+    std::lock_guard<std::mutex> g(g_mtx);
+    if (!g_player) return jstr(env, "{}");
+    Engine &E = g_player->E;
+    std::lock_guard<std::mutex> cg(E.cond_mtx);
+    return jstr(env, E.cond.derived((double)E.frame.load() / SR).dump());
+}
+
+// 말 (음성 인식 문장 · Gleo) → 요청. {"intent":"change|like|quiet|…","say":"다른 분위기로 바꿀게요"}
+JNIEXPORT jstring JNICALL Java_com_twinpark_music_audio_BgmNative_nativeSay(JNIEnv *env, jobject, jstring text) {
+    std::lock_guard<std::mutex> g(g_mtx);
+    if (!g_player) return jstr(env, "{}");
+    std::string it;
+    const std::string reply = g_player->E.hear(to_str(env, text), &it);
+    Json j = Json::obj_();
+    j.set("intent", Json::str_(it)); j.set("say", Json::str_(reply));
+    return jstr(env, j.dump());
+}
+
+// 지휘자가 지금 정한 것 (화면): line(왜 한 줄) · scene_name · because[] · mood(다음에 고를 분위기) + cur(지금 나오는 분위기 ID) · auto · loaded · amb
+JNIEXPORT jstring JNICALL Java_com_twinpark_music_audio_BgmNative_nativeConductor(JNIEnv *env, jobject) {
+    std::lock_guard<std::mutex> g(g_mtx);
+    if (!g_player) return jstr(env, "{}");
+    Engine &E = g_player->E;
+    Json j;
+    { std::lock_guard<std::mutex> cg(E.cond_mtx); j = E.dec.to_json(); }
+    if (!j.is_obj()) j = Json::obj_();
+    j.set("cur", Json::str_(E.cur_mood_id()));
+    j.set("auto", Json::bool_(E.auto_mode.load()));
+    j.set("loaded", Json::bool_(E.cond.loaded));
+    Json amb = Json::obj_();
+    amb.set("sea", Json::num_(E.amb.level[0].load())); amb.set("rain", Json::num_(E.amb.level[1].load()));
+    j.set("amb", amb);
+    return jstr(env, j.dump());
 }
 
 }  // extern "C"
