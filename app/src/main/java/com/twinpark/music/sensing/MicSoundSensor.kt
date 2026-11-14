@@ -51,10 +51,19 @@ object MicSoundSensor : SoundSensor {
             Log.w(TAG, "마이크를 열지 못함")
             return
         }
-        val sound = SoundListener(LoggingClassifier(AppClassifier.current))
+        // 모델 파일(약 23MB)을 읽는 일은 화면 스레드가 아니라 듣는 스레드에서 한다
+        val model = lazy { AppClassifier.create(context) }
+        val sound = SoundListener(LoggingClassifier { samples, rate -> model.value.classify(samples, rate) })
         listener = sound
         running = true
-        worker = thread(name = "mic-sensing") { capture(record, sound) }
+        worker = thread(name = "mic-sensing") {
+            model.value
+            try {
+                capture(record, sound)
+            } finally {
+                if (model.isInitialized()) (model.value as? OnnxSoundClassifier)?.close()
+            }
+        }
         Log.i(TAG, "듣기 시작")
     }
 

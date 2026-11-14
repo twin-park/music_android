@@ -74,7 +74,7 @@ android {
 
     // 엔진 데이터(AI 모델, 사운드폰트, 피아노 약 130MB)를 에셋 `bgm/`으로 묶는다. 이미 압축된 형식이라 다시 압축하지 않는다.
     sourceSets.getByName("main").assets.srcDir(bgmAssetsDir)
-    androidResources { noCompress += listOf("bin", "sf2", "flac", "txt") }
+    androidResources { noCompress += listOf("bin", "sf2", "flac", "txt", "onnx") }
 }
 
 // ai/engine/data 에서 엔진이 읽는 파일만 골라 `build/generated/bgmAssets/bgm/`에 모은다. 바뀌지 않으면 건너뛴다.
@@ -99,6 +99,7 @@ val carApiStub = androidComponents.sdkComponents.sdkDirectory.map { it.file("pla
 
 dependencies {
     compileOnly(files(carApiStub))
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
     implementation("ai.pleos.playground:FusedLocation:1.1.3")
     implementation("ai.pleos.playground:Vehicle:2.3.2")
     implementation("ai.pleos.playground:NaviHelper:3.0.5")
