@@ -12,11 +12,12 @@ import kotlinx.coroutines.flow.asStateFlow
  * 이 앱의 음성 명령. 빌드 설정 `VOICE_COMMAND`가 켜져 있을 때만 동작한다(기본 꺼짐).
  * [listen]으로 한 문장을 듣고, 인식된 글자를 엔진의 `say`(말로 하는 요청)에 넘겨 음악을 바꾼다.
  * 어떤 음성 인식을 쓸지는 [SpeechEngine]이 정한다(`VOICE_ENGINE`, 기본 안드로이드 기본 인식).
- * 엔진이 돌려주는 답변 문장은 [reply]로 알린다(소리로 읽어 주는 것은 아직 없음).
+ * 엔진이 돌려주는 답변 문장은 [reply]로 알리고, [SpeechOutput](안드로이드 기본 TTS)으로 소리 내어 읽어 준다.
  */
 object AppVoice {
     private const val TAG = "AppVoice"
     private var source: SpeechSource? = null
+    private var output: SpeechOutput = NoSpeechOutput
 
     private val _heard = MutableStateFlow("")
     private val _reply = MutableStateFlow("")
@@ -37,6 +38,7 @@ object AppVoice {
         if (!enabled || source != null) return
         Log.i(TAG, "음성 인식 구현: ${engine.id}")
         source = engine.create(context.applicationContext, ::onHeard).also { it.start() }
+        output = AndroidSpeechOutput(context.applicationContext).also { it.start() }
     }
 
     /** 한 문장 듣기. 기능이 꺼져 있거나 준비가 안 됐으면 false. */
@@ -47,6 +49,8 @@ object AppVoice {
     fun stop() {
         source?.close()
         source = null
+        output.close()
+        output = NoSpeechOutput
     }
 
     private fun onHeard(text: String) {
@@ -54,5 +58,6 @@ object AppVoice {
         val answer = BgmController.say(text)
         _reply.value = answer
         Log.i(TAG, "말: $text -> 엔진: ${answer.ifEmpty { "(응답 없음)" }}")
+        if (answer.isNotEmpty()) output.speak(answer)                  // 엔진의 답변을 소리로 읽어 준다
     }
 }

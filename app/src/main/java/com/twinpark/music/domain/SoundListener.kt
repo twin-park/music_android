@@ -31,6 +31,10 @@ class SoundListener(
 
     fun process(samples: ShortArray, count: Int) {
         for (chunk in window.push(samples, count)) {
+            if (SoundGate.isMuted(nowMs())) {                 // 앱이 말하는 중: 새로 분류하지 않고 마지막 결과를 유효하게 둔다
+                if (heardAtMs != Long.MIN_VALUE) heardAtMs = nowMs()
+                continue
+            }
             latest = classifier.classify(chunk, SAMPLE_RATE)
             heardAtMs = nowMs()
         }
