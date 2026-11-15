@@ -54,7 +54,7 @@ object AppVoice {
     }
 
     private fun onHeard(text: String) {
-        _heard.value = text
+        _heard.value = text.ifEmpty { "(못 알아들음)" }
         val answer = BgmController.say(text)
         _reply.value = answer
         Log.i(TAG, "말: $text -> 엔진: ${answer.ifEmpty { "(응답 없음)" }}")
