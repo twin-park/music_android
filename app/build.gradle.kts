@@ -10,6 +10,8 @@ val bgmAssetsDir = layout.buildDirectory.dir("generated/bgmAssets")
 
 // 날씨 API 키와 위치는 저장소에 올라가지 않는 android/local.properties에서 읽는다(없으면 비워 둬서 날씨 연동을 끈다).
 //   DEV_MODE=true   (시연용 DEV 패널과 CHANGE THE MOOD 버튼, 기본 꺼짐. 환경변수 DEV_MODE로도 줄 수 있음)
+//   VOICE_COMMAND=true   (음성 명령, Pleos STT 온디바이스. 기본 꺼짐)
+//   PLEOS_CLIENT_ID=...   PLEOS_CLIENT_SECRET=...   (Pleos Playground My Project 값. 서버 방식 음성 인식에만 필요, 필수 아님)
 //   OPENWEATHER_API_KEY=...   (필수 아님)   WEATHER_LAT=37.5665   WEATHER_LON=126.9780   (필수 아님, 기본 서울)
 // 앱에 넣은 키는 APK에서 꺼낼 수 있다. 대회, 시연용이며 정식 배포는 서버를 거쳐야 한다.
 val localProps = Properties().apply {
@@ -39,6 +41,13 @@ android {
         buildConfigField("boolean", "MIC_SENSING", localProp("MIC_SENSING", "false"))
         // 시연용 DEV 패널과 CHANGE THE MOOD 버튼. 기본 꺼짐. 켜려면 -PDEV_MODE=true, local.properties 또는 환경변수 DEV_MODE=true
         buildConfigField("boolean", "DEV_MODE", localProp("DEV_MODE", "false"))
+        // 음성 명령(Pleos STT 온디바이스). 기본 꺼짐. 켜려면 -PVOICE_COMMAND=true, local.properties 또는 환경변수 VOICE_COMMAND=true
+        buildConfigField("boolean", "VOICE_COMMAND", localProp("VOICE_COMMAND", "false"))
+        // 음성 인식 구현: android(기본, 안드로이드 기본 인식) 또는 pleos(Pleos STT 온디바이스, 플랫폼에서 열리면)
+        buildConfigField("String", "VOICE_ENGINE", "\"${localProp("VOICE_ENGINE", "android")}\"")
+        // Pleos Playground My Project 의 Client ID / Secret. 서버 방식 음성 인식(registerApp)에만 쓰고, 온디바이스는 필요 없다. 앱에 넣은 값은 APK에서 꺼낼 수 있다.
+        buildConfigField("String", "PLEOS_CLIENT_ID", "\"${localProp("PLEOS_CLIENT_ID")}\"")
+        buildConfigField("String", "PLEOS_CLIENT_SECRET", "\"${localProp("PLEOS_CLIENT_SECRET")}\"")
         buildConfigField("String", "OPENWEATHER_API_KEY", "\"${localProp("OPENWEATHER_API_KEY")}\"")
         buildConfigField("double", "WEATHER_LAT", localProp("WEATHER_LAT", "37.5665"))      // 위치는 차량 위치 SDK(FusedLocation)가 준비되면 그쪽 값으로 바꾼다
         buildConfigField("double", "WEATHER_LON", localProp("WEATHER_LON", "126.9780"))
@@ -106,6 +115,7 @@ dependencies {
     implementation("ai.pleos.playground:FusedLocation:1.1.3")
     implementation("ai.pleos.playground:Vehicle:2.3.2")
     implementation("ai.pleos.playground:NaviHelper:3.0.5")
+    implementation("ai.pleos.playground:SpeechToText:3.3.1")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
