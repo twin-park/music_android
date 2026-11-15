@@ -91,6 +91,36 @@ class SoundListenerTest {
     }
 
     @Test
+    fun mutedWindowsAreNotClassifiedAndTheLastResultStaysValid() {
+        SoundGate.clear()
+        try {
+            val clock = Clock()
+            var words = setOf("대화")
+            var calls = 0
+            val listener = SoundListener({ _, _ -> calls++; words }, clock)
+            listener.process(fourSeconds, fourSeconds.size)
+            assertEquals(setOf("대화"), listener.heard())
+            assertEquals(1, calls)
+
+            words = setOf("웃음")                                   // 앱이 말하는 동안에는 바뀌지 않는다
+            SoundGate.muteUntil(clock.now + 10_000)
+            val hop = SoundListener.SAMPLE_RATE * SoundListener.HOP_SECONDS
+            clock.now += SoundListener.FRESH_MS
+            listener.process(ShortArray(hop), hop)
+            assertEquals(1, calls)
+            clock.now += SoundListener.FRESH_MS
+            assertEquals(setOf("대화"), listener.heard())          // 건너뛰는 동안 결과가 만료되지 않는다
+
+            clock.now += 10_000                                      // 문이 열리면 다시 분류한다
+            listener.process(ShortArray(hop), hop)
+            assertEquals(2, calls)
+            assertEquals(setOf("웃음"), listener.heard())
+        } finally {
+            SoundGate.clear()
+        }
+    }
+
+    @Test
     fun noClassifierHearsNothing() {
         val listener = SoundListener(NoSoundClassifier, Clock())
         listener.process(fourSeconds, fourSeconds.size)

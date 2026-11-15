@@ -28,6 +28,9 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
     <!-- SDK가 차량 전용(필수)으로 선언하는 것을 폰에서도 설치할 수 있게 완화한다 -->
     <uses-feature
