@@ -7,10 +7,11 @@ plugins {
 }
 
 val bgmAssetsDir = layout.buildDirectory.dir("generated/bgmAssets")
+val voskAssetsDir = layout.buildDirectory.dir("generated/voskAssets")
 
 // 날씨 API 키와 위치는 저장소에 올라가지 않는 android/local.properties에서 읽는다(없으면 비워 둬서 날씨 연동을 끈다).
 //   DEV_MODE=true   (시연용 DEV 패널과 CHANGE THE MOOD 버튼, 기본 꺼짐. 환경변수 DEV_MODE로도 줄 수 있음)
-//   VOICE_COMMAND=true   (음성 명령, Pleos STT 온디바이스. 기본 꺼짐)
+//   VOICE_COMMAND=true   (음성 명령. 기본 꺼짐)   VOSK_MODEL_DIR=D:/.../vosk-model-small-ko-0.22   (음성 인식 모델 폴더, 저장소에 없음)
 //   PLEOS_CLIENT_ID=...   PLEOS_CLIENT_SECRET=...   (Pleos Playground My Project 값. 서버 방식 음성 인식에만 필요, 필수 아님)
 //   OPENWEATHER_API_KEY=...   (필수 아님)   WEATHER_LAT=37.5665   WEATHER_LON=126.9780   (필수 아님, 기본 서울)
 // 앱에 넣은 키는 APK에서 꺼낼 수 있다. 대회, 시연용이며 정식 배포는 서버를 거쳐야 한다.
@@ -43,8 +44,8 @@ android {
         buildConfigField("boolean", "DEV_MODE", localProp("DEV_MODE", "false"))
         // 음성 명령(Pleos STT 온디바이스). 기본 꺼짐. 켜려면 -PVOICE_COMMAND=true, local.properties 또는 환경변수 VOICE_COMMAND=true
         buildConfigField("boolean", "VOICE_COMMAND", localProp("VOICE_COMMAND", "false"))
-        // 음성 인식 구현: android(기본, 안드로이드 기본 인식) 또는 pleos(Pleos STT 온디바이스, 플랫폼에서 열리면)
-        buildConfigField("String", "VOICE_ENGINE", "\"${localProp("VOICE_ENGINE", "android")}\"")
+        // 음성 인식 구현: vosk(기본, 앱 안에서 도는 오프라인 인식), android(안드로이드 기본 인식), pleos(Pleos STT, 플랫폼에서 열리면)
+        buildConfigField("String", "VOICE_ENGINE", "\"${localProp("VOICE_ENGINE", "vosk")}\"")
         // 음성 출력 구현: recorded(기본, 미리 만든 음성 파일), android(안드로이드 기본 TTS), pleos(Pleos TextToSpeech, 플랫폼에서 열리면)
         buildConfigField("String", "VOICE_OUTPUT", "\"${localProp("VOICE_OUTPUT", "recorded")}\"")
         // Pleos Playground My Project 의 Client ID / Secret. 서버 방식 음성 인식(registerApp)에만 쓰고, 온디바이스는 필요 없다. 앱에 넣은 값은 APK에서 꺼낼 수 있다.
@@ -88,6 +89,7 @@ android {
 
     // 엔진 데이터(AI 모델, 사운드폰트, 피아노 약 130MB)를 에셋 `bgm/`으로 묶는다. 이미 압축된 형식이라 다시 압축하지 않는다.
     sourceSets.getByName("main").assets.srcDir(bgmAssetsDir)
+    sourceSets.getByName("main").assets.srcDir(voskAssetsDir)
     androidResources { noCompress += listOf("bin", "sf2", "flac", "txt", "onnx") }
 }
 
@@ -108,6 +110,16 @@ val copyBgmData by tasks.registering(Sync::class) {
 }
 tasks.named("preBuild") { dependsOn(copyBgmData) }
 
+// 음성 인식(Vosk 한국어 모델, 압축 해제하면 약 250MB)은 저장소에 올리지 않는다. VOSK_MODEL_DIR(local.properties · -P · 환경변수)에 풀어 둔 모델 폴더를 주면 에셋 `vosk-ko/`로 묶고, 없으면 묶지 않는다.
+//   모델: https://alphacephei.com/vosk/models/vosk-model-small-ko-0.22.zip
+val copyVoskModel by tasks.registering(Sync::class) {
+    val dir = localProp("VOSK_MODEL_DIR")
+    if (dir.isNotEmpty() && File(dir).isDirectory) from(dir)
+    into(voskAssetsDir.map { it.dir("vosk-ko") })
+    doFirst { if (dir.isEmpty() || !File(dir).isDirectory) logger.lifecycle("VOSK_MODEL_DIR 이 없어 음성 인식 모델을 앱에 넣지 않습니다.") }
+}
+tasks.named("preBuild") { dependsOn(copyVoskModel) }
+
 // 차량 API(android.car) 스텁: SDK 플랫폼 36에 들어 있다. 실행할 때는 차량 시스템이 제공하고, 없으면 앱이 제한 없음으로 동작한다.
 val carApiStub = androidComponents.sdkComponents.sdkDirectory.map { it.file("platforms/android-36/optional/android.car.jar") }
 
@@ -117,6 +129,8 @@ dependencies {
     implementation("ai.pleos.playground:FusedLocation:1.1.3")
     implementation("ai.pleos.playground:Vehicle:2.3.2")
     implementation("ai.pleos.playground:NaviHelper:3.0.5")
+    implementation("net.java.dev.jna:jna:5.13.0@aar")        // Vosk(음성 인식)가 쓴다
+    implementation("com.alphacephei:vosk-android:0.3.75")
     implementation("ai.pleos.playground:SpeechToText:3.3.1")
     implementation("ai.pleos.playground:TextToSpeech:3.3.1")
     implementation(libs.androidx.core.ktx)

@@ -17,8 +17,11 @@ interface SpeechSource : AutoCloseable {
     fun listen(): Boolean
 }
 
-/** 쓸 음성 인식 구현. 빌드 설정 `VOICE_ENGINE`(기본 android)으로 고른다. */
+/** 쓸 음성 인식 구현. 빌드 설정 `VOICE_ENGINE`(기본 vosk)으로 고른다. */
 enum class SpeechEngine(val id: String) {
+    /** 앱 안에서 도는 오프라인 인식(Vosk 한국어 모델). 서비스가 필요 없다(기본). 모델은 빌드에 `VOSK_MODEL_DIR`을 줘야 들어간다. */
+    Vosk("vosk"),
+
     /** 안드로이드 기본 음성 인식(`SpeechRecognizer`). 기기에 인식 서비스가 있어야 한다. */
     Android("android"),
 
@@ -27,11 +30,12 @@ enum class SpeechEngine(val id: String) {
     ;
 
     companion object {
-        /** 모르는 이름이면 기본(안드로이드)로. */
-        fun from(id: String?): SpeechEngine = entries.firstOrNull { it.id.equals(id?.trim(), ignoreCase = true) } ?: Android
+        /** 모르는 이름이면 기본(Vosk)으로. */
+        fun from(id: String?): SpeechEngine = entries.firstOrNull { it.id.equals(id?.trim(), ignoreCase = true) } ?: Vosk
     }
 
     fun create(context: Context, onText: (String) -> Unit): SpeechSource = when (this) {
+        Vosk -> VoskSpeechSource(context, onText)
         Android -> AndroidSpeechSource(context, onText)
         Pleos -> PleosSpeechSource(context, onText)
     }

@@ -42,13 +42,14 @@ class SpeechPolicyTest {
     }
 
     @Test
-    fun `음성 인식 구현은 이름으로 고르고 모르면 안드로이드 기본이다`() {
+    fun `음성 인식 구현은 이름으로 고르고 모르면 Vosk이다`() {
         assertEquals(SpeechEngine.Android, SpeechEngine.from("android"))
+        assertEquals(SpeechEngine.Vosk, SpeechEngine.from("vosk"))
         assertEquals(SpeechEngine.Pleos, SpeechEngine.from("pleos"))
         assertEquals(SpeechEngine.Pleos, SpeechEngine.from("  Pleos "))
-        assertEquals(SpeechEngine.Android, SpeechEngine.from(""))
-        assertEquals(SpeechEngine.Android, SpeechEngine.from(null))
-        assertEquals(SpeechEngine.Android, SpeechEngine.from("whisper"))
+        assertEquals(SpeechEngine.Vosk, SpeechEngine.from(""))
+        assertEquals(SpeechEngine.Vosk, SpeechEngine.from(null))
+        assertEquals(SpeechEngine.Vosk, SpeechEngine.from("whisper"))
     }
 
     @Test

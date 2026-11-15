@@ -86,7 +86,10 @@ object MicSoundSensor : SoundSensor {
             while (running) {
                 val count = record.read(buffer, 0, buffer.size)
                 if (count < 0) break
-                if (count > 0) sound.process(buffer, count)
+                if (count > 0) {
+                    sound.process(buffer, count)
+                    MicTap.sink?.invoke(buffer, count)          // 음성 인식이 듣는 동안만 같은 소리를 넘긴다
+                }
             }
         } finally {
             runCatching { record.stop() }
