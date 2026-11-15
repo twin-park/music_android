@@ -1,4 +1,4 @@
-# 마이 마에스트로
+# 무드 마에
 
 차 안의 **주변 소리를 듣고, 사용자가 원하는 음악을 그 자리에서 합성해 들려주는** 안드로이드 앱입니다.
 마이크로 차 안 소리(대화, 웃음, 음악, 바다 소리, 아기 울음 등)를 계속 듣고, AI 지휘자가 상황을 보고 분위기와 악기를 정하고,
@@ -149,4 +149,4 @@ tools/              소리 파일 넣기 스크립트 등
 - 사운드폰트와 피아노 샘플(GeneralUser GS, Sonatina Symphonic Orchestra 일부, Salamander 피아노), 파도·빗소리 녹음(CC0·퍼블릭 도메인)의 조건은 엔진 저장소 [music_ai](https://github.com/twin-park/music_ai)에 있습니다.
 - 귀 모델 가중치는 FSD50K(클립별 CC 라이선스), CREMA-D(ODbL), AxonData 아기 울음 샘플(CC-BY 4.0)로 학습했습니다. 가중치만 들어 있고 원본 소리는 없습니다.
 - 음성 인식 [Vosk](https://alphacephei.com/vosk/)(Apache 2.0)와 한국어 소형 모델, 소리 내기 [TinySoundFont](https://github.com/schellingb/TinySoundFont)(MIT), 소리 분류 실행 ONNX Runtime.
-- 앱 이름은 "마이 마에스트로"이고, 패키지 이름(`com.twinpark.music`)과 저장소 이름(`music_android`)은 이전 이름 그대로입니다.
+- 앱 이름은 "무드 마에"이고, 패키지 이름(`com.twinpark.music`)과 저장소 이름(`music_android`)은 이전 이름 그대로입니다.
