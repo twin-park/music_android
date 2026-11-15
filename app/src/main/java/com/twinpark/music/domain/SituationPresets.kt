@@ -72,7 +72,7 @@ class EarSituation {
     private val heardAt = HashMap<String, Long>()     // 칸 → 마지막으로 들린 시각
 
     /** 이번에 들린 단어로 바뀐 칸만 JSON 으로. 바뀐 게 없으면 null. */
-    fun update(words: Set<String>, nowMs: Long): String? {
+    fun update(words: Set<String>, nowMs: Long, talk: Float? = null): String? {
         fun heard(vararg ws: String) = ws.any { it in words }
         val want = LinkedHashMap<String, Any?>()
         want["cabin.sound"] = when {
@@ -82,6 +82,7 @@ class EarSituation {
             heard("대화", "아이 목소리", "속삭임") -> "talk"
             else -> "quiet"
         }
+        want["cabin.talk"] = talk                    // 말소리가 또렷할 때만 값을 보내고, 아니면 지워서 엔진이 차 안 소리 상태로 추정하게 한다
         latch(want, "people.baby", "crying", heard("아기 울음"), nowMs)
         latch(want, "place.kind", "coast", heard("바다", "파도", "갈매기"), nowMs)
         latch(want, "weather.kind", if (heard("천둥")) "storm" else "rain", heard("비", "천둥"), nowMs)

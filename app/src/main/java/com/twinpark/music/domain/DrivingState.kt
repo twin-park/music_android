@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /** 차량이 알려 주는 주행 값. 알 수 없으면 null이다. */
-data class DrivingState(val speedKmh: Float? = null, val gear: DrivingGear? = null) {
+data class DrivingState(val speedKmh: Float? = null, val gear: DrivingGear? = null, val limitKmh: Int? = null) {
     val moving: Boolean get() = (speedKmh ?: 0f) >= MOVING_KMH
 
     companion object {

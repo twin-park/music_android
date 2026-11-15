@@ -8,12 +8,23 @@ import android.content.Context
 import android.util.Log
 
 /** Pleos NaviHelper SDK로 내비 이벤트를 받는다. 내비 서비스가 없거나 초기화에 실패하면 아무 일도 하지 않는다. */
-class PleosNaviSource(private val context: Context, private val onArrived: () -> Unit) : AutoCloseable {
+class PleosNaviSource(
+    private val context: Context,
+    private val onSpeedLimit: (Int) -> Unit = {},
+    private val onArrived: () -> Unit,
+) : AutoCloseable {
     private var helper: NaviHelper? = null
+    private var lastLimit: Int? = null
 
     private val listener = object : NaviHelperEventListener {
         override fun onNavigationStatus(status: NavigationStatus) {
             Log.i(TAG, "내비 상태 $status")
+        }
+
+        override fun onCurrentRoadSpeedLimit(speedLimit: Int) {
+            if (speedLimit != lastLimit) Log.i(TAG, "제한속도 $speedLimit")      // 내비가 1초마다 알려 주므로 바뀔 때만 남긴다
+            lastLimit = speedLimit
+            onSpeedLimit(speedLimit)
         }
 
         override fun onDestinationArrived(info: DestinationArrivedInfo) {
