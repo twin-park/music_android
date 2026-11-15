@@ -320,9 +320,11 @@ private fun OrbPanel(
                 ) { Text("END", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
                 OutlinedButton(
                     onClick = {
+                        // 지휘자가 있으면 "다른 거": 지금 분위기는 10분 빼고 지금 상황에서 다음으로 맞는 분위기로 바로. 없으면 목록 다음.
                         val list = Mood.EngineMoods
                         val at = list.indexOfFirst { it.id == engineId }
-                        onEngineChange(list[(at + 1) % list.size].id)
+                        if (BgmController.conductorOn) BgmController.changeMood { list[(at + 1) % list.size].id }
+                        else onEngineChange(list[(at + 1) % list.size].id)
                     },
                     modifier = Modifier.weight(1f).height(btnH).background(com.twinpark.music.ui.component.Glass.Fill, androidx.compose.foundation.shape.CircleShape),
                     contentPadding = btnPad,
@@ -351,6 +353,10 @@ private fun OrbPanel(
                     fontSize = ui(12f),
                     maxLines = 1,
                 )
+                // 지휘자가 왜 이렇게 골랐는지 한 줄 (예: "주말 가족 바닷길 → 바닷가 보사노바 · 파도 소리")
+                val conductor by BgmController.conductor.collectAsState()
+                val why = conductor?.takeIf { it.loaded && it.auto && bgmState == BgmState.Ready }?.line.orEmpty()
+                if (why.isNotEmpty()) Text(why, color = Color.White.copy(alpha = 0.85f), fontSize = ui(12f), maxLines = 2, lineHeight = ui(15f))
             }
             if (piano) {
                 // 개발용 선택 화면: 반투명 건반과 내려오는 음(Figma 피아노 화면). 연주 중일 때만 음이 나온다.
@@ -433,7 +439,7 @@ private fun WeatherRow(label: String, value: String, unit: String) {
     }
 }
 
-/** 개발용: 엔진 분위기 9개를 바로 고르고 저모션을 켠다. 디버그 빌드에서만 보인다. 좁으면 옆으로 밀어 본다. */
+/** 개발용: 지휘자 상황(바닷가 · 출근길 …)을 고르고, 엔진 분위기 32개를 바로 고르고, 저모션을 켠다. 디버그 빌드에서만 보인다. 좁으면 옆으로 밀어 본다. */
 @Composable
 private fun DevControls(
     engineId: String,
@@ -447,6 +453,8 @@ private fun DevControls(
     onPianoChange: (Boolean) -> Unit,
 ) {
   Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    val conductor by BgmController.conductor.collectAsState()
+    if (conductor?.loaded == true) DevSituationRows(conductor)
     // 날씨: 오브와 장면을 정한다. 자동이면 기기 시계(비 없음), 시간대나 비를 누르면 그 값으로 고정한다.
     val manual by WeatherSource.manual.collectAsState()
     Row(
@@ -544,6 +552,99 @@ private fun situationLine(s: TrackerState?): String {
     val cur = s.current?.let { "${it.situation} -> ${it.engineMoodId}" } ?: "아직 없음"
     val cand = s.candidate?.let { " · 후보 ${it.situation} ${s.candidateMs / 1000}초/4초" } ?: ""
     return "상황: $cur$cand" + if (s.ducking) " · 통화(낮춤)" else ""
+}
+
+/** DEV 상황 칩: 사람이 고른 칸 (패널을 닫았다 열어도 남게 밖에 둠). 고른 칸은 귀가 덮어쓰지 않는다. */
+private object DevSituation {
+    val picked = androidx.compose.runtime.mutableStateMapOf<String, String>()
+    var preset by mutableStateOf(-1)
+    var error by mutableStateOf("")
+
+    fun applyPreset(i: Int) {
+        val p = com.twinpark.music.domain.SituationPresets.PRESETS[i]
+        BgmController.resetSituation()
+        SituationDirector.ear.clear()
+        picked.clear()
+        for ((k, v) in p.values) { picked[k] = v.toString(); SituationDirector.ear.userKeys += k }
+        preset = i
+        send(com.twinpark.music.domain.SituationPresets.patch(p.values))
+        syncSky()
+    }
+
+    fun toggle(path: String, value: String) {
+        val v = if (picked[path] == value) null else value              // 같은 걸 다시 누르면 지움
+        if (v == null) { picked.remove(path); SituationDirector.ear.userKeys -= path } else { picked[path] = v; SituationDirector.ear.userKeys += path }
+        preset = -1
+        send(com.twinpark.music.domain.SituationPresets.patch(path, v))
+        if (path == "weather.kind") syncSky()
+    }
+
+    fun reset() {
+        BgmController.resetSituation()
+        SituationDirector.ear.clear()
+        picked.clear(); preset = -1; error = ""
+        WeatherSource.setManual(null)
+    }
+
+    private fun send(json: String) { error = BgmController.setSituation(json) }
+
+    /** 화면 하늘(비 · 눈)도 고른 날씨를 따라감 */
+    private fun syncSky() {
+        when (picked["weather.kind"]) {
+            "rain", "storm" -> WeatherSource.setManual(WeatherState(TimeOfDay.now(), raining = true))
+            "snow" -> WeatherSource.setManual(WeatherState(TimeOfDay.now(), snowing = true))
+            else -> WeatherSource.setManual(null)
+        }
+    }
+}
+
+/** DEV: 지휘자 상황. 바닷가 · 출근길 같은 걸 고르면 지휘자가 분위기 · 악기 · 빠르기 · 파도/빗소리를 정한다(몇 초 ~ 한 단락 뒤, 아기 · 언성 · 과속은 빨리). */
+@Composable
+private fun DevSituationRows(conductor: com.twinpark.music.audio.ConductorInfo?) {
+    val chip: @Composable (String, Boolean, () -> Unit) -> Unit = { text, on, click ->
+        Button(
+            onClick = click,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (on) Color(0xFF3DD68C) else Color(0x33FFFFFF),
+                contentColor = if (on) Color.Black else Color.White,
+            ),
+        ) { Text(text, fontSize = ui(12f), maxLines = 1) }
+    }
+    @Composable
+    fun line(title: String, content: @Composable () -> Unit) {
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(title, color = Color.White.copy(alpha = 0.7f), fontSize = ui(12f))
+            content()
+        }
+    }
+    line("상황:") {
+        com.twinpark.music.domain.SituationPresets.PRESETS.forEachIndexed { i, p -> chip(p.name, DevSituation.preset == i) { DevSituation.applyPreset(i) } }
+        chip("지우기", false) { DevSituation.reset() }
+    }
+    com.twinpark.music.domain.SituationPresets.GROUPS.forEach { g ->
+        line("${g.name}:") {
+            g.values.forEach { (v, label) -> chip(label, DevSituation.picked[g.path] == v) { DevSituation.toggle(g.path, v) } }
+        }
+    }
+    val c = conductor
+    Text(
+        text = when {
+            DevSituation.error.isNotEmpty() -> "상황을 못 보냄: ${DevSituation.error}"
+            c == null -> "지휘자: 준비 중"
+            !c.auto -> "지휘자: 꺼짐 (직접 고름)"
+            else -> "지휘자: " + (if (c.scene.isNotEmpty()) "[${c.scene}] " else "") + "→ ${c.chosenName}" +
+                (if (c.sea > 0 || c.rain > 0) " · 주변 소리 " + listOfNotNull("파도".takeIf { c.sea > 0 }, "비".takeIf { c.rain > 0 }).joinToString("+") else "") +
+                (if (c.because.isNotEmpty()) " · " + c.because.take(3).joinToString(" · ") else "")
+        },
+        color = Color(0xFF3DD68C),
+        fontSize = ui(12f),
+        maxLines = 2,
+    )
 }
 
 /** 디버그 칩에 올릴 귀 단어(ear/words.py 가 내는 단어 중 상황에 쓰이는 것) */

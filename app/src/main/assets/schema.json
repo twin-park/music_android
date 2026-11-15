@@ -27,7 +27,27 @@
                 "day_drive",
                 "classical_piano",
                 "string_ensemble",
-                "classical_waltz"
+                "classical_waltz",
+                "fresh_morning",
+                "night_highway",
+                "lofi_cafe",
+                "blues_shuffle",
+                "big_band_swing",
+                "city_pop_drive",
+                "funky_groove",
+                "eighties_neon",
+                "samba_festival",
+                "reggae_beach",
+                "tropical_island",
+                "tango_night",
+                "celtic_fields",
+                "country_road",
+                "starlight_ambient",
+                "kids_singalong",
+                "acoustic_camping",
+                "snowy_evening",
+                "baroque_stroll",
+                "epic_cinematic"
               ]
             }
           },

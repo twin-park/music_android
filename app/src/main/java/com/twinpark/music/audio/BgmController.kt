@@ -9,6 +9,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
@@ -48,7 +51,9 @@ object BgmController : MusicEngine {
             if (result == BgmState.Ready) {
                 p.setVolume(volume)
                 p.setParams(params)
-                p.requestMood(_moodId.value)
+                // 지휘자가 있으면 지금 상황(시간대 · 요일은 시계로, 나머지는 차량 · 귀 · 화면)을 3초쯤 보고 고른 분위기로 시작한다
+                if (!BgmNative.nativeAutoStart()) p.requestMood(_moodId.value)
+                pollConductor()
             } else {
                 starting.set(false)               // 데이터를 넣은 뒤 다시 시도할 수 있게
             }
@@ -70,7 +75,57 @@ object BgmController : MusicEngine {
     override fun requestMood(engineId: String) {
         if (engineId == _moodId.value) return
         _moodId.value = engineId
-        if (_state.value == BgmState.Ready) player?.requestMood(engineId)
+        if (_state.value != BgmState.Ready) return
+        if (conductorOn) {                                   // 알아서 중: 사람이 고른 분위기는 15분 지키고, 그 뒤 다시 상황을 따른다
+            pickedAtMs = System.currentTimeMillis()
+            BgmNative.nativePick(engineId)
+        } else player?.requestMood(engineId)
+    }
+
+    // ── 지휘자 (ai/engine conductor) ──
+    private val _conductor = MutableStateFlow<ConductorInfo?>(null)
+
+    /** 지휘자가 지금 정한 것 (화면 표시). 예전 엔진이거나 아직 안 켜졌으면 null. */
+    val conductor: StateFlow<ConductorInfo?> = _conductor.asStateFlow()
+
+    /** 지휘자가 상황을 보고 고르는 중인가 */
+    val conductorOn: Boolean get() = _conductor.value?.let { it.loaded && it.auto } == true
+
+    private var pollJob: Job? = null
+    @Volatile private var pickedAtMs = 0L
+
+    /** 1초마다 지휘자 결정을 읽어 화면에 알리고, 지휘자가 분위기를 바꾸면 [moodId]도 따라가게 한다(오브 · 하늘). */
+    private fun pollConductor() {
+        pollJob?.cancel()
+        pollJob = scope.launch {
+            while (isActive && _state.value != BgmState.Idle) {
+                if (_state.value == BgmState.Ready) {
+                    val c = ConductorInfo.parse(BgmNative.nativeConductor())
+                    _conductor.value = c
+                    val justPicked = System.currentTimeMillis() - pickedAtMs < 12_000   // 고른 분위기로 넘어가는 동안은 화면을 되돌리지 않음
+                    if (c != null && c.auto && !justPicked && c.current.isNotEmpty() && c.current != _moodId.value) _moodId.value = c.current
+                }
+                delay(1000)
+            }
+        }
+    }
+
+    /** 상황 일부 JSON (예: {"place":{"kind":"coast"}} · null 은 지움). 성공하면 빈 글자. */
+    fun setSituation(json: String): String = if (_state.value == BgmState.Ready) BgmNative.nativeSituation(json) else "엔진 준비 중"
+
+    /** 상황 모두 지우기 */
+    fun resetSituation() { if (_state.value == BgmState.Ready) BgmNative.nativeSituationReset() }
+
+    /** 말로 요청 ("다른 거" · "조용히" · "신나게" · "파도 소리" · "이거 좋다" …) → 지휘자 대답 한 줄 */
+    fun say(text: String): String =
+        if (_state.value != BgmState.Ready) "" else runCatching { org.json.JSONObject(BgmNative.nativeSay(text)).optString("say") }.getOrDefault("")
+
+    /**
+     * CHANGE THE MOOD: 알아서 중이면 지휘자에게 "다른 거" — 지금 분위기는 10분 동안 빼고, 지금 상황에서 다음으로 맞는 분위기로 바로(다음 마디) 넘어간다.
+     * 지휘자가 없으면 목록의 다음 분위기([fallbackNext]).
+     */
+    fun changeMood(fallbackNext: () -> String) {
+        if (conductorOn) { say("다른 거"); pickedAtMs = 0L } else requestMood(fallbackNext())
     }
 
     private var autoParams = EngineParams()

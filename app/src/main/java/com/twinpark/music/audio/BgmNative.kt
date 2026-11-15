@@ -37,4 +37,30 @@ internal object BgmNative {
 
     /** 소리 줄이 앞서 만들어 두는 양(초). 피아노 화면이 음을 일찍 알려 받으려고 늘린다. */
     external fun nativeLead(sec: Float)
+
+    // ── 지휘자(ai/engine 11-13 판부터): 상황 → 분위기 · 악기 · 빠르기 · 주변 소리. 자세한 건 [Conductor] ──
+
+    /** 지금 상황을 3초쯤 보고 지휘자가 고른 분위기로 시작. 지휘자가 없으면 false. */
+    external fun nativeAutoStart(): Boolean
+
+    /** 알아서 켜기 · 끄기 */
+    external fun nativeAuto(on: Boolean)
+
+    /** 사람이 분위기를 직접 고름 (알아서 중이면 15분은 그 분위기) */
+    external fun nativePick(id: String)
+
+    /** 상황 일부 JSON (null 은 지움). 성공하면 빈 글자, 아니면 이유. 예: {"place":{"kind":"coast"}} */
+    external fun nativeSituation(json: String): String
+
+    /** 상황 모두 지우기 */
+    external fun nativeSituationReset()
+
+    /** 지금 상황 JSON (지휘자가 시계로 채운 칸 포함) */
+    external fun nativeSituationGet(): String
+
+    /** 말(음성 인식 문장) → 요청. {"intent":"change|like|quiet|…","say":"…"} */
+    external fun nativeSay(text: String): String
+
+    /** 지휘자가 지금 정한 것 JSON: line · scene_name · because · mood(고른 것) · cur(지금 나오는 것) · auto · loaded */
+    external fun nativeConductor(): String
 }

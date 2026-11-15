@@ -15,7 +15,28 @@ enum class GleoMood(val wire: String, val engineId: String) {
     DayDrive("day_drive", "낮드라이브"),
     ClassicalPiano("classical_piano", "클래식피아노"),
     StringEnsemble("string_ensemble", "현악앙상블"),
-    ClassicalWaltz("classical_waltz", "클래식왈츠");
+    ClassicalWaltz("classical_waltz", "클래식왈츠"),
+    // ai 11-13 판에서 늘어난 분위기 20개
+    FreshMorning("fresh_morning", "상쾌한아침"),
+    NightHighway("night_highway", "밤고속도로"),
+    LofiCafe("lofi_cafe", "로파이"),
+    BluesShuffle("blues_shuffle", "블루스셔플"),
+    BigBandSwing("big_band_swing", "빅밴드"),
+    CityPopDrive("city_pop_drive", "시티팝"),
+    FunkyGroove("funky_groove", "펑키그루브"),
+    EightiesNeon("eighties_neon", "80년대"),
+    SambaFestival("samba_festival", "삼바"),
+    ReggaeBeach("reggae_beach", "레게"),
+    TropicalIsland("tropical_island", "트로피컬"),
+    TangoNight("tango_night", "탱고"),
+    CelticFields("celtic_fields", "켈틱"),
+    CountryRoad("country_road", "컨트리"),
+    StarlightAmbient("starlight_ambient", "별빛앰비언트"),
+    KidsSingalong("kids_singalong", "동요"),
+    AcousticCamping("acoustic_camping", "캠핑포크"),
+    SnowyEvening("snowy_evening", "겨울저녁"),
+    BaroqueStroll("baroque_stroll", "바로크"),
+    EpicCinematic("epic_cinematic", "웅장한영화");
 
     companion object {
         fun fromWire(wire: String?): GleoMood? = entries.firstOrNull { it.wire == wire }

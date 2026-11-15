@@ -42,7 +42,7 @@ data class Mood(
             cloudDensity = 1.0f,
             orbPose = 2,
             weather = Weather(86, 62, 8, 8),
-            engineIds = listOf("비오는날", "위로", "클래식피아노"),
+            engineIds = listOf("비오는날", "위로", "클래식피아노", "로파이", "겨울저녁"),
             sceneKey = "rain",
         )
 
@@ -55,7 +55,7 @@ data class Mood(
             orbPose = 3,
             sceneKey = "dusk",
             weather = Weather(86, 42, 6, 0),
-            engineIds = listOf("즐거운대화", "낮드라이브"),
+            engineIds = listOf("즐거운대화", "낮드라이브", "시티팝", "펑키그루브", "블루스셔플", "빅밴드", "삼바", "컨트리", "켈틱", "동요", "80년대", "웅장한영화"),
         )
 
         /** 수면: 가장 고요한 상태, 하늘은 밤 (Figma 30% 시안) */
@@ -66,7 +66,7 @@ data class Mood(
             cloudDensity = 0.5f,
             orbPose = 1,
             weather = Weather(20, 18, 4, 0),
-            engineIds = listOf("아이재우기", "밤드라이브", "현악앙상블"),
+            engineIds = listOf("아이재우기", "밤드라이브", "현악앙상블", "밤고속도로", "별빛앰비언트", "탱고"),
             sceneKey = "night",
         )
 
@@ -80,7 +80,7 @@ data class Mood(
             cloudDensity = 0.85f,
             orbPose = 0,
             weather = Weather(86, 42, 6, 0),
-            engineIds = listOf("평온한재즈", "진정", "클래식왈츠"),
+            engineIds = listOf("평온한재즈", "진정", "클래식왈츠", "상쾌한아침", "캠핑포크", "바로크"),
             sceneKey = "dawn",
         )
 
@@ -93,7 +93,7 @@ data class Mood(
             cloudDensity = 0.8f,
             orbPose = 4,
             weather = Weather(20, 18, 4, 0),
-            engineIds = listOf("바닷가보사노바"),
+            engineIds = listOf("바닷가보사노바", "레게", "트로피컬"),
             sceneKey = "day",
         )
 
@@ -109,12 +109,25 @@ data class Mood(
             sceneKey = "snow",
         )
 
-        /** 엔진 분위기 9개를 사용자에게 보이는 순서로 나열한다. ("분위기 바꾸기"가 이 순서로 돈다) */
+        /**
+         * 엔진 분위기 32개를 사용자에게 보이는 순서로 나열한다. ("분위기 바꾸기"가 지휘자 없이 쓸 때 이 순서로 돈다)
+         * 앞 12개는 예전 판, 뒤 20개는 ai 11-13 판(갈래마다 다른 리듬 · 악기)에서 늘어난 것.
+         */
         val EngineMoods = listOf(
             EngineMood("비오는날", "비 오는 날"), EngineMood("평온한재즈", "평온한 재즈"), EngineMood("밤드라이브", "밤 드라이브"),
             EngineMood("즐거운대화", "즐거운 대화"), EngineMood("바닷가보사노바", "바닷가 보사노바"), EngineMood("아이재우기", "아이 재우기"),
-            EngineMood("진정", "진정"), EngineMood("위로", "위로"), EngineMood("낮드라이브", "낮 드라이브"),
+            EngineMood("진정", "마음 가라앉히기"), EngineMood("위로", "위로"), EngineMood("낮드라이브", "낮 드라이브"),
             EngineMood("클래식피아노", "클래식 피아노"), EngineMood("현악앙상블", "현악 앙상블"), EngineMood("클래식왈츠", "클래식 왈츠"),
+            // 재즈 · 팝 · 그루브
+            EngineMood("상쾌한아침", "상쾌한 아침"), EngineMood("밤고속도로", "밤 고속도로"), EngineMood("로파이", "로파이 카페"),
+            EngineMood("블루스셔플", "블루스 셔플"), EngineMood("빅밴드", "빅밴드 스윙"), EngineMood("시티팝", "시티팝 드라이브"),
+            EngineMood("펑키그루브", "펑키 그루브"), EngineMood("80년대", "80년대 네온"),
+            // 세계 리듬
+            EngineMood("삼바", "삼바 축제"), EngineMood("레게", "레게 해변"), EngineMood("트로피컬", "트로피컬 섬"), EngineMood("탱고", "탱고의 밤"),
+            EngineMood("켈틱", "켈틱 들판"), EngineMood("컨트리", "시골길 컨트리"),
+            // 잔잔 · 가족 · 클래식 · 영화
+            EngineMood("별빛앰비언트", "별빛 앰비언트"), EngineMood("동요", "아이와 노래"), EngineMood("캠핑포크", "어쿠스틱 캠핑"),
+            EngineMood("겨울저녁", "눈 오는 저녁"), EngineMood("바로크", "바로크 산책"), EngineMood("웅장한영화", "웅장한 영화"),
         )
 
         /** [current]에서 [step]칸 떨어진 엔진 분위기 ID. 목록 끝에서는 처음으로 돌아가고, 모르는 ID면 첫 분위기다. */

@@ -25,6 +25,9 @@ object SituationDirector {
 
     private var manualUntilMs = 0L
 
+    /** 귀 단어 → 지휘자 상황 칸 (지휘자가 있을 때). 사람이 DEV 에서 고른 칸은 [EarSituation.userKeys] 로 비켜 간다. */
+    val ear = com.twinpark.music.domain.EarSituation()
+
     /** 직접 분위기를 고른 뒤 이 시간 동안은 자동 전환을 보류한다. */
     private const val MANUAL_HOLD_MS = 60_000L
 
@@ -38,6 +41,13 @@ object SituationDirector {
         if (st.candidate?.situation != before?.candidate?.situation && st.candidate != null) Log.i(TAG, "후보: ${st.candidate.situation} (단어 $all)")
         if (st.ducking != before?.ducking) Log.i(TAG, if (st.ducking) "통화: 음악 낮춤" else "통화 끝: 음악 되돌림")
         BgmController.duck(st.ducking)                                     // 즉시층: 통화는 기다리지 않는다
+        if (BgmController.conductorOn) {                                   // 지휘자가 있으면: 들린 단어는 상황 칸으로 넘기고, 분위기 · 악기 · 빠르기는 지휘자가 정한다
+            ear.update(all, nowMs)?.let { patch ->
+                val err = BgmController.setSituation(patch)
+                Log.i(TAG, "귀 → 지휘자 $patch" + if (err.isNotEmpty()) " ($err)" else "")
+            }
+            return
+        }
         if (nowMs < manualUntilMs) return                                  // 사용자가 고른 직후에는 자동 전환을 하지 않는다
         if (st.switched) {
             val cur = st.current ?: return
