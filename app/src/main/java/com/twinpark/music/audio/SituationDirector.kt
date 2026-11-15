@@ -31,11 +31,15 @@ object SituationDirector {
     /** 날씨 API · 와이퍼 → 지휘자 날씨 칸. 귀가 들은 비 · 천둥과 같은 칸이다. */
     private val weather = com.twinpark.music.domain.WeatherSituation()
 
+    /** 차량 속도 → 지휘자 달리기 칸. 신호 대기 · 정체 · 고속은 지휘자가 속도로 정한다. */
+    private val drive = com.twinpark.music.domain.DriveSituation()
+
     /** 사람이 상황을 모두 지웠다: 귀와 날씨가 보낸 값도 잊어서 다음 번에 다시 보낸다. */
     @Synchronized
     fun clearSituation() {
         ear.clear()
         weather.reset()
+        drive.reset()
     }
 
     /** 직접 분위기를 고른 뒤 이 시간 동안은 자동 전환을 보류한다. */
@@ -65,6 +69,11 @@ object SituationDirector {
                 val err = BgmController.setSituation(patch)
                 Log.i(TAG, "날씨 → 지휘자 $patch" + if (err.isNotEmpty()) " ($err)" else "")
                 if (err.isNotEmpty()) weather.reset()                      // 엔진이 아직 준비 안 됐으면 다음 번에 다시 보낸다
+            }
+            drive.update(com.twinpark.music.car.AppDriving.state, ear.userKeys)?.let { patch ->
+                val err = BgmController.setSituation(patch)
+                Log.i(TAG, "차량 → 지휘자 $patch" + if (err.isNotEmpty()) " ($err)" else "")
+                if (err.isNotEmpty()) drive.reset()
             }
             return
         }
