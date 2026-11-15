@@ -287,6 +287,7 @@ private fun OrbPanel(
     val context = LocalContext.current
     val debuggable = com.twinpark.music.BuildConfig.DEV_MODE      // 시연용: 빌드 설정 DEV_MODE (app/build.gradle.kts)
     var devOpen by remember { mutableStateOf(false) }
+    var devAlpha by remember { mutableStateOf(0.9f) }      // DEV 패널 투명도(화면을 덜 가리게 조절)
     // 가로 화면(폰은 높이 360dp 안팎)처럼 낮으면 컴팩트: 오브가 늘 보이도록 날씨 표를 줄이고 버튼을 낮춘다.
     BoxWithConstraints(modifier) {
         val compact = maxHeight < COMPACT_HEIGHT
@@ -368,10 +369,19 @@ private fun OrbPanel(
         // 개발용(디버그 빌드만): 접어 두었다가 펼치면 패널 위에 겹쳐 보인다. 오브 자리를 빼앗지 않는다.
         if (debuggable) {
             if (devOpen) {
-                Box(
+                Column(
                     Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                        .background(Color(0xFF0B0F24), RoundedCornerShape(12.dp)).padding(8.dp),
-                ) { DevControls(engineId, onEngineChange, sensed, onSensedChange, situation, devReduced, onReducedChange, piano, onPianoChange) }
+                        .background(Color(0xFF0B0F24).copy(alpha = devAlpha), RoundedCornerShape(12.dp)).padding(8.dp),
+                ) {
+                    // 투명도 조절: 패널 배경과 내용을 함께 흐리게 한다(슬라이더는 항상 선명)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("투명도 ${(devAlpha * 100).toInt()}%", color = Color(0xFF7DD3FC), fontSize = ui(12f), modifier = Modifier.width((96 * LocalUiScale.current).dp))
+                        androidx.compose.material3.Slider(value = devAlpha, onValueChange = { devAlpha = it }, valueRange = 0.15f..1f, modifier = Modifier.weight(1f).height(28.dp))
+                    }
+                    Box(Modifier.graphicsLayer { alpha = devAlpha.coerceAtLeast(0.35f) }) {
+                        DevControls(engineId, onEngineChange, sensed, onSensedChange, situation, devReduced, onReducedChange, piano, onPianoChange)
+                    }
+                }
             }
         }
     }
