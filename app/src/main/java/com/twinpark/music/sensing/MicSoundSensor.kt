@@ -30,6 +30,16 @@ object MicSoundSensor : SoundSensor {
 
     @Volatile private var listener: SoundListener? = null
 
+    /**
+     * 마이크 종류, 앞에서부터 열리는 것을 쓴다. 음성 인식용([MediaRecorder.AudioSource.VOICE_RECOGNITION])이 기본이다:
+     * 통화용(VOICE_COMMUNICATION)은 잡음 제거가 켜져 빗소리 같은 일정한 소음을 지우므로(같은 빗소리가 소리 크기 0.001로 들어왔다) 주변 소리를 듣는 데 맞지 않다.
+     * 대신 통화용의 에코 제거가 없어서 앱이 틀어 둔 음악이 마이크에 더 섞인다.
+     */
+    private val SOURCES = listOf(MediaRecorder.AudioSource.VOICE_RECOGNITION, MediaRecorder.AudioSource.MIC, MediaRecorder.AudioSource.VOICE_COMMUNICATION)
+
+    /** 시험용: 마이크 종류를 바꿔 본다(`DebugVoiceFeedReceiver`, DEV 빌드). 있으면 [SOURCES]보다 먼저 쓴다. */
+    @Volatile var sourceOverride: Int? = null
+
     @SuppressLint("MissingPermission")
     @Synchronized
     fun start(context: Context) {
@@ -39,15 +49,15 @@ object MicSoundSensor : SoundSensor {
             return
         }
         val minBuffer = AudioRecord.getMinBufferSize(SoundListener.SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-        val record = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_COMMUNICATION, // 에코 제거가 켜져 우리 음악 소리가 덜 섞인다
-            SoundListener.SAMPLE_RATE,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-            max(minBuffer, SoundListener.SAMPLE_RATE * 2),
-        )
-        if (record.state != AudioRecord.STATE_INITIALIZED) {
-            record.release()
+        val buffer = max(minBuffer, SoundListener.SAMPLE_RATE * 2)
+        var source = -1
+        var record: AudioRecord? = null
+        for (candidate in listOfNotNull(sourceOverride) + SOURCES) {
+            val r = AudioRecord(candidate, SoundListener.SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, buffer)
+            if (r.state == AudioRecord.STATE_INITIALIZED) { record = r; source = candidate; break }
+            r.release()
+        }
+        val rec = record ?: run {
             Log.w(TAG, "마이크를 열지 못함")
             return
         }
@@ -59,12 +69,12 @@ object MicSoundSensor : SoundSensor {
         worker = thread(name = "mic-sensing") {
             model.value
             try {
-                capture(record, sound)
+                capture(rec, sound)
             } finally {
                 if (model.isInitialized()) (model.value as? OnnxSoundClassifier)?.close()
             }
         }
-        Log.i(TAG, "듣기 시작")
+        Log.i(TAG, "듣기 시작(마이크 종류 $source)")
     }
 
     @Synchronized

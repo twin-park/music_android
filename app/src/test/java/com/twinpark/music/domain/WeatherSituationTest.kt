@@ -48,31 +48,7 @@ class WeatherSituationTest {
     }
 
     @Test
-    fun `귀가 날씨 칸을 쥐고 있는 동안은 날씨 API 값을 보내지 않는다`() {
-        val w = WeatherSituation()
-        assertNull(w.update(report(clouds = 10), false, 2_000, earHolds = true))
-        assertNull(w.update(report(clouds = 10), false, 2_000, earHolds = true))
-    }
-
-    @Test
-    fun `귀가 칸을 놓으면 날씨 API 값을 다시 보내 되돌린다`() {
-        val w = WeatherSituation()
-        assertEquals("""{"weather":{"kind":"clear"}}""", w.update(report(clouds = 10), false, 2_000))
-        assertNull(w.update(report(clouds = 10), false, 2_000))
-        assertNull(w.update(report(clouds = 10), false, 2_000, earHolds = true))                 // 소리가 비로 덮어쓴 동안
-        assertEquals("""{"weather":{"kind":"clear"}}""", w.update(report(clouds = 10), false, 2_000))   // 소리가 사라짐: API 값이 되돌아온다
-        assertNull(w.update(report(clouds = 10), false, 2_000))                                  // 그 뒤로는 바뀔 때만
-    }
-
-    @Test
-    fun `귀가 쥔 적이 없으면 예전처럼 바뀔 때만 보낸다`() {
-        val w = WeatherSituation()
-        assertEquals("""{"weather":{"kind":"clear"}}""", w.update(report(clouds = 10), false, 2_000))
-        assertNull(w.update(report(clouds = 10), false, 2_000, earHolds = false))
-    }
-
-    @Test
-    fun `사람이 고른 칸은 소리나 날씨가 건드리지 않는다`() {
+    fun `사람이 고른 칸은 날씨가 건드리지 않는다`() {
         assertNull(WeatherSituation().update(report(clouds = 10), false, 2_000, userKeys = setOf("weather.kind")))
     }
 }

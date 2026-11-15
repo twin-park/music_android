@@ -14,6 +14,7 @@ import com.twinpark.music.domain.SoundListener
 import com.twinpark.music.domain.heardAll
 import com.twinpark.music.sensing.AppClassifier
 import com.twinpark.music.sensing.AppSensors
+import com.twinpark.music.sensing.MicSoundSensor
 import com.twinpark.music.sensing.MicTap
 import com.twinpark.music.sensing.OnnxSoundClassifier
 import java.io.File
@@ -34,6 +35,7 @@ import kotlin.concurrent.thread
 class DebugVoiceFeedReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (!BuildConfig.DEV_MODE) return
+        intent.getStringExtra("mic")?.let { switchMic(context.applicationContext, it); return }
         val name = intent.getStringExtra("file") ?: "feed.wav"
         val app = context.applicationContext
         val file = if (name.startsWith("/")) File(name) else File(app.getExternalFilesDir(null), name)
@@ -50,6 +52,22 @@ class DebugVoiceFeedReceiver : BroadcastReceiver() {
                 if (!ear) pending.finish()
             }
         }
+    }
+
+    /** 마이크 종류를 바꿔 다시 연다(시험용): communication(기본) · mic · unprocessed · recognition · camcorder. */
+    private fun switchMic(context: Context, name: String) {
+        val src = when (name) {
+            "communication" -> android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION
+            "mic" -> android.media.MediaRecorder.AudioSource.MIC
+            "unprocessed" -> android.media.MediaRecorder.AudioSource.UNPROCESSED
+            "recognition" -> android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION
+            "camcorder" -> android.media.MediaRecorder.AudioSource.CAMCORDER
+            else -> { Log.w(TAG, "모르는 마이크 종류: $name"); return }
+        }
+        MicSoundSensor.sourceOverride = src
+        MicSoundSensor.stop()
+        MicSoundSensor.start(context)
+        Log.i(TAG, "마이크 종류를 $name($src)로 바꿈")
     }
 
     private companion object { const val TAG = "DebugFeed" }
