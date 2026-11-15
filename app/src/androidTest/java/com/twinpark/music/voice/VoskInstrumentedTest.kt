@@ -4,10 +4,13 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.twinpark.music.domain.SoundGate
+import com.twinpark.music.sensing.MicTap
 import com.twinpark.music.audio.BgmController
 import com.twinpark.music.audio.BgmState
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -111,6 +114,60 @@ class VoskInstrumentedTest {
             Log.i("VoskTest", "명령으로 잘못 들린 것 ${wrong.size}/6")
             assertTrue("명령으로 잘못 들린 것: $wrong", wrong.isEmpty())
         } finally {
+            src.close()
+        }
+    }
+
+    /**
+     * 계속 듣기: 마이크 자리(MicTap)로 보통 말과 명령을 섞어 흘려보내, 명령만 순서대로 받아들이는지 본다.
+     * 마이크 스레드(소리를 넣는 쪽)가 막히지 않는지, 앱이 말하는 동안(SoundGate) 듣지 않는지도 본다.
+     */
+    @Test
+    fun continuousListeningTakesCommandsAndIgnoresTalk() {
+        SoundGate.clear()
+        val heard = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val src = VoskSpeechSource(context, cooldownMs = 0) { heard += it }
+        try {
+            src.start()
+            assertTrue("음성 인식 모델이 준비돼야 함", waitFor(600_000) { src.isReady })
+            assertTrue("계속 듣기가 시작돼야 함", waitFor(5_000) { src.listen() })
+
+            var worst = 0L
+            fun push(chunk: ShortArray) {
+                val t0 = SystemClock.elapsedRealtime()
+                MicTap.sink!!.invoke(chunk, chunk.size)
+                worst = maxOf(worst, SystemClock.elapsedRealtime() - t0)
+                Thread.sleep(25)
+            }
+            fun speak(name: String) {
+                val pcm = pcm(name)
+                var off = 0
+                while (off < pcm.size) {
+                    val n = minOf(1_600, pcm.size - off)
+                    push(pcm.copyOfRange(off, off + n))
+                    off += n
+                }
+                repeat(15) { push(ShortArray(1_600)) }                  // 1.5초 고요: 한 문장이 끝났다고 알아채게
+            }
+
+            for (name in listOf("neg_lunch", "cmd_change", "neg_meeting", "cmd_quiet", "neg_aircon", "cmd_sea_sound",
+                "neg_mom", "cmd_music_off", "neg_tired", "cmd_like", "neg_signal", "cmd_reset")) speak(name)
+            waitFor(10_000) { heard.size >= 6 }
+            Log.i("VoskTest", "계속 듣기: 받아들인 명령 ${heard.toList()}, 소리 넣기 최대 ${worst}ms")
+            assertEquals(listOf("다른 거 틀어 줘", "조용히 해 줘", "파도 소리 깔아 줘", "음악 꺼 줘", "이거 좋다", "원래대로 해 줘"), heard.toList())
+            assertTrue("소리를 넣는 쪽(마이크 스레드)을 막으면 안 됨: 최대 ${worst}ms", worst < 50)
+
+            // 앱이 말하는 동안에는 명령으로 듣지 않는다
+            heard.clear()
+            SoundGate.muteUntil(System.currentTimeMillis() + 30_000)
+            speak("cmd_change")
+            Thread.sleep(3_000)
+            assertTrue("앱이 말하는 동안에는 받지 않아야 함: $heard", heard.isEmpty())
+            SoundGate.clear()
+            speak("cmd_change")
+            assertTrue("문이 열리면 다시 들어야 함", waitFor(8_000) { heard.size == 1 })
+        } finally {
+            SoundGate.clear()
             src.close()
         }
     }

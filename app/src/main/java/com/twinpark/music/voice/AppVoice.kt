@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * 이 앱의 음성 명령. 빌드 설정 `VOICE_COMMAND`가 켜져 있을 때만 동작한다(기본 꺼짐).
- * [listen]으로 한 문장을 듣고, 인식된 글자를 엔진의 `say`(말로 하는 요청)에 넘겨 음악을 바꾼다.
- * 어떤 음성 인식을 쓸지는 [SpeechEngine]이 정한다(`VOICE_ENGINE`, 기본 안드로이드 기본 인식).
+ * 계속 듣는 구현이 아니면 [listen]으로 한 문장을 듣고, 인식된 글자를 엔진의 `say`(말로 하는 요청)에 넘겨 음악을 바꾼다.
+ * 어떤 음성 인식을 쓸지는 [SpeechEngine]이 정한다(`VOICE_ENGINE`, 기본 vosk: 앱 화면이 보이는 동안 계속 듣는다).
  * 엔진이 돌려주는 답변 문장은 [reply]로 알리고, [SpeechOutput](안드로이드 기본 TTS)으로 소리 내어 읽어 준다.
  */
 object AppVoice {
@@ -32,6 +32,9 @@ object AppVoice {
 
     /** 이 빌드가 쓰는 음성 인식 구현 */
     val engine: SpeechEngine get() = SpeechEngine.from(BuildConfig.VOICE_ENGINE)
+
+    /** 버튼 없이 계속 듣는 빌드인가(앱 화면이 보이는 동안). 화면에서 `말하기` 버튼을 보일지 정하는 데 쓴다. */
+    val alwaysListening: Boolean get() = enabled && engine == SpeechEngine.Vosk
 
     @Synchronized
     fun start(context: Context) {

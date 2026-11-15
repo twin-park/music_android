@@ -3,6 +3,7 @@ package com.twinpark.music.voice
 import java.io.File
 import org.json.JSONArray
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -61,5 +62,27 @@ class SpeechVocabularyTest {
         val words = SpeechVocabulary.words(f.readText())
         assertTrue("다른 거" in words && "조용히" in words && "음악 꺼" in words)
         assertTrue(words.size >= 40)
+    }
+
+    private val phrases = SpeechVocabulary.phrases(listOf("조용히", "다른 거", "편안", "이거 좋", "음악 그만", "꺼 줘", "음악 꺼"))
+
+    @Test
+    fun `명령 모양인 말은 받는다`() {
+        for (t in listOf("조용히 해 줘", "다른 거 틀어 줘", "신나는 걸로 틀어 줘", "이거 좋다", "음악 꺼 줘", "편안 틀어 줘", "조용히")) {
+            assertTrue(t, SpeechVocabulary.isCoherent(t, phrases))
+        }
+    }
+
+    @Test
+    fun `낱말을 이어 붙인 꼴과 군더더기뿐인 말은 거른다`() {
+        assertFalse("해 편안 좋 틀어 줘", SpeechVocabulary.isCoherent("해 편안 좋 틀어 줘", phrases))     // 계속 듣기 시험에서 보통 말이 이렇게 들렸다
+        assertFalse("해 음악 그만 좋 틀어 줘", SpeechVocabulary.isCoherent("해 음악 그만 좋 틀어 줘", phrases))
+        assertFalse("틀어 줘", SpeechVocabulary.isCoherent("틀어 줘", phrases))
+        assertFalse("", SpeechVocabulary.isCoherent("", phrases))
+    }
+
+    @Test
+    fun `뺄 낱말은 문장에서도 빠진다`() {
+        assertFalse("꺼 줘" in SpeechVocabulary.phrases(listOf("꺼 줘", "꺼줘")))
     }
 }
