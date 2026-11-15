@@ -87,6 +87,7 @@ import com.twinpark.music.ui.component.rememberRainShaderSource
 import com.twinpark.music.ui.component.rememberWeatherClock
 import com.twinpark.music.ui.component.drawPrecipitation
 import com.twinpark.music.ui.component.orb.BeadOrb
+import com.twinpark.music.voice.AppVoice
 
 /**
  * 메인 화면 (프로토타입).
@@ -459,13 +460,13 @@ private fun DevControls(
     val conductor by BgmController.conductor.collectAsState()
     if (conductor?.loaded == true) DevSituationRows(conductor)
     // 음성 명령(VOICE_COMMAND 빌드만): 누르면 한 문장을 듣고, 인식한 말과 엔진의 답변을 보여 준다.
-    if (com.twinpark.music.voice.AppVoice.enabled) {
-        val heard by com.twinpark.music.voice.AppVoice.heard.collectAsState()
-        val reply by com.twinpark.music.voice.AppVoice.reply.collectAsState()
+    if (AppVoice.enabled) {
+        val heard by AppVoice.heard.collectAsState()
+        val reply by AppVoice.reply.collectAsState()
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("음성:", color = Color.White.copy(alpha = 0.7f), fontSize = ui(12f))
             Button(
-                onClick = { com.twinpark.music.voice.AppVoice.listen() },
+                onClick = { AppVoice.listen() },
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0x33FFFFFF), contentColor = Color.White),
             ) { Text("말하기", fontSize = ui(12f), maxLines = 1) }
