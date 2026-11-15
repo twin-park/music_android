@@ -108,6 +108,7 @@ class BgmService : Service() {
         if (navi == null && packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)) {
             navi = PleosNaviSource(applicationContext, onSpeedLimit = com.twinpark.music.car.AppDriving::setSpeedLimit) { scope.launch(Dispatchers.Main) { finish() } }.also { it.start() }
         }
+        com.twinpark.music.voice.AppVoice.start(applicationContext)          // 음성 명령(VOICE_COMMAND 가 켜진 빌드만)
         if (senseJob == null) senseJob = scope.launch(Dispatchers.Main) {
             while (true) {
                 SituationDirector.observe(AppSensors.all.heardAll())
@@ -156,6 +157,7 @@ class BgmService : Service() {
         AppDriving.stop()
         navi?.close()
         navi = null
+        com.twinpark.music.voice.AppVoice.stop()
         BgmMediaSession.deactivate()
         abandonFocus()
         BgmController.shutdown()

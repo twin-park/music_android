@@ -458,6 +458,23 @@ private fun DevControls(
   Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
     val conductor by BgmController.conductor.collectAsState()
     if (conductor?.loaded == true) DevSituationRows(conductor)
+    // 음성 명령(VOICE_COMMAND 빌드만): 누르면 한 문장을 듣고, 인식한 말과 엔진의 답변을 보여 준다.
+    if (com.twinpark.music.voice.AppVoice.enabled) {
+        val heard by com.twinpark.music.voice.AppVoice.heard.collectAsState()
+        val reply by com.twinpark.music.voice.AppVoice.reply.collectAsState()
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("음성:", color = Color.White.copy(alpha = 0.7f), fontSize = ui(12f))
+            Button(
+                onClick = { com.twinpark.music.voice.AppVoice.listen() },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0x33FFFFFF), contentColor = Color.White),
+            ) { Text("말하기", fontSize = ui(12f), maxLines = 1) }
+            Text(
+                text = if (heard.isEmpty()) "" else "\"$heard\"" + if (reply.isEmpty()) "" else " → $reply",
+                color = Color.White.copy(alpha = 0.85f), fontSize = ui(12f), maxLines = 2,
+            )
+        }
+    }
     // 날씨: 오브와 장면을 정한다. 자동이면 기기 시계(비 없음), 시간대나 비를 누르면 그 값으로 고정한다.
     val manual by WeatherSource.manual.collectAsState()
     Row(

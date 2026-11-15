@@ -18,7 +18,10 @@ dependencyResolutionManagement {
         mavenCentral()
         // Pleos Connect SDK(공개 저장소)
         maven("https://nexus-playground.pleos.ai/repository/maven-releases/") {
-            content { includeGroup("ai.pleos.playground") }
+            content {
+                includeGroup("ai.pleos.playground")
+                includeGroup("ai.pleos.playground.security")      // SpeechToText 가 끌어오는 universal-access
+            }
         }
     }
 }

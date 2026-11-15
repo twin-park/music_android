@@ -20,6 +20,15 @@
     <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
     <!-- Pleos NaviHelper SDK: 내비 상태와 도착 이벤트를 받는다 -->
     <uses-permission android:name="pleos.car.permission.NAVI_NOTIFY" />
+    <!-- 음성 명령(Pleos SpeechToText SDK). VOICE_ENGINE=pleos 인 빌드에서만 실행 중에 요청한다. -->
+    <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
+
+    <!-- 안드로이드 11 이상에서 기기의 음성 인식 서비스를 찾으려면 필요하다(음성 명령, 안드로이드 기본 인식) -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
     <!-- SDK가 차량 전용(필수)으로 선언하는 것을 폰에서도 설치할 수 있게 완화한다 -->
     <uses-feature
         android:name="android.hardware.type.automotive"
