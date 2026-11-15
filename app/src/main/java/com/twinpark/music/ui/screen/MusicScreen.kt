@@ -338,20 +338,23 @@ private fun OrbPanel(
             Column {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White))
                 Text("AI IS CONDUCTING", color = Color.White, fontSize = ui(16f), fontFamily = AppFonts.Pretendard, modifier = Modifier.padding(top = 4.dp))
-                Text(
-                    text = when (bgmState) {
-                        BgmState.Idle, BgmState.Loading -> "음악 준비 중..."
-                        BgmState.Ready -> if (paused) "일시정지" else status?.let { "${it.moodName} · ${it.role} · ${it.key}조 · ♩=${it.bpm}" + if (it.underruns > 0) " · 끊김 ${it.underruns}" else "" } ?: "연주를 시작합니다"
-                        is BgmState.Failed -> bgmState.reason
-                    },
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = ui(12f),
-                    maxLines = 1,
-                )
-                // 지휘자가 왜 이렇게 골랐는지 한 줄 (예: "주말 가족 바닷길 → 바닷가 보사노바 · 파도 소리")
+                // 분위기 · 조 · 템포 줄은 개발용(DEV)에서만 보인다. 연주 중이 아닐 때(준비 중 · 일시정지 · 오류)의 안내는 늘 보인다.
+                if (debuggable || bgmState != BgmState.Ready || paused) {
+                    Text(
+                        text = when (bgmState) {
+                            BgmState.Idle, BgmState.Loading -> "음악 준비 중..."
+                            BgmState.Ready -> if (paused) "일시정지" else status?.let { "${it.moodName} · ${it.role} · ${it.key}조 · ♩=${it.bpm}" + if (it.underruns > 0) " · 끊김 ${it.underruns}" else "" } ?: "연주를 시작합니다"
+                            is BgmState.Failed -> bgmState.reason
+                        },
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = ui(12f),
+                        maxLines = 1,
+                    )
+                }
+                // 지휘자가 왜 이렇게 골랐는지 한 줄 (예: "주말 가족 바닷길 → 바닷가 보사노바 · 파도 소리"). 개발용(DEV)에서만 보인다.
                 val conductor by BgmController.conductor.collectAsState()
                 val why = conductor?.takeIf { it.loaded && it.auto && bgmState == BgmState.Ready }?.line.orEmpty()
-                if (why.isNotEmpty()) Text(why, color = Color.White.copy(alpha = 0.85f), fontSize = ui(12f), maxLines = 2, lineHeight = ui(15f))
+                if (debuggable && why.isNotEmpty()) Text(why, color = Color.White.copy(alpha = 0.85f), fontSize = ui(12f), maxLines = 2, lineHeight = ui(15f))
             }
             if (piano) {
                 // 개발용 선택 화면: 반투명 건반과 내려오는 음(Figma 피아노 화면). 연주 중일 때만 음이 나온다.
