@@ -62,7 +62,7 @@ object SituationPresets {
  * 귀(ear)가 들은 단어 → 지휘자 상황 칸. 지휘자가 있으면 [com.twinpark.music.audio.SituationDirector]가 예전 규칙표 대신 이것을 쓴다.
  * 분위기는 지휘자가 상황 전체(시간 · 여정 · 장소 · 날씨 · 누구랑 · 차 안 소리)를 보고 정하고, 귀는 그중 들리는 것만 알려 준다.
  *   - 차 안 소리: 늘 지금 들리는 것 하나 (언성 > 웃음 > 노래 > 대화 > 조용). 몇 초 이어져야 하는지는 지휘자 규칙(hold/release)이 정한다.
- *   - 아기 울음 · 바다 소리 · 비 소리: 들리면 그 칸을 켜고, [RELEASE_MS] 동안 안 들리면 지운다(귀가 켠 칸만).
+ *   - 아기 울음 · 바다 소리 · 비 소리: 들리면 그 칸을 켜고(비는 `비` 또는 바다 계열 없이 혼자 들린 `물소리`. 바다 계열이 들리면 바다가 우선), [RELEASE_MS] 동안 안 들리면 지운다(귀가 켠 칸만).
  * 사람이 화면에서 직접 고른 칸([userKeys])은 귀가 건드리지 않는다.
  */
 class EarSituation {
@@ -84,8 +84,18 @@ class EarSituation {
         }
         want["cabin.talk"] = talk                    // 말소리가 또렷할 때만 값을 보내고, 아니면 지워서 엔진이 차 안 소리 상태로 추정하게 한다
         latch(want, "people.baby", "crying", heard("아기 울음"), nowMs)
-        latch(want, "place.kind", "coast", heard("바다", "파도", "갈매기"), nowMs)
-        latch(want, "weather.kind", if (heard("천둥")) "storm" else "rain", heard("비", "천둥"), nowMs)
+        val coast = heard("바다", "파도", "갈매기")
+        val thunder = heard("천둥")
+        latch(want, "place.kind", "coast", coast, nowMs)
+        val coastNear = coast || (heardAt["place.kind"]?.let { nowMs - it < RELEASE_MS } == true)   // 바다가 최근에 들렸으면 파도 낱말이 잠깐 빠진 창에서도 바다로 본다
+        if (coastNear && !thunder) {
+            // 귀 모델은 파도 소리에도 `비`를, 빗소리에는 `물소리`만 내는 일이 많다(시험 소리 expected.txt). 바다 계열이 들리거나 최근에 들렸으면 바다를 우선하고,
+            // 귀가 켜 둔 비 칸은 바로 지운다(안 지우면 비와 바다 사이를 오가서 분위기가 안 바뀐다). 진짜 비는 날씨 API · 와이퍼가 따로 알린다.
+            if (heardAt.remove("weather.kind") != null) want["weather.kind"] = null
+        } else {
+            // `물소리`는 바다 계열 없이 혼자 들리면 비로 본다(귀 모델이 빗소리를 `비`가 아니라 `물소리`로 분류한다)
+            latch(want, "weather.kind", if (thunder) "storm" else "rain", thunder || heard("비", "물소리"), nowMs)
+        }
         val changed = want.entries.filter { (k, v) -> k !in userKeys && (!sent.containsKey(k) || sent[k] != v) && !(v == null && !sent.containsKey(k)) }
         if (changed.isEmpty()) return null
         for ((k, v) in changed) sent[k] = v
@@ -98,6 +108,9 @@ class EarSituation {
         val t = heardAt[path] ?: return
         want[path] = if (nowMs - t < RELEASE_MS) sent[path] else null
     }
+
+    /** 귀가 소리로 날씨 칸(비 · 폭풍)을 켜 두었는가. 켜 둔 동안은 날씨 API가 그 칸을 덮어쓰지 않는다([WeatherSituation]). */
+    val holdsWeather: Boolean get() = sent["weather.kind"] != null
 
     /** 사람이 상황을 모두 지웠을 때 */
     fun clear() { userKeys.clear(); sent.clear(); heardAt.clear() }
