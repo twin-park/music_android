@@ -67,6 +67,7 @@ object SituationDirector {
                 com.twinpark.music.domain.WeatherSource.wipersOn.value,
                 System.currentTimeMillis(),
                 ear.userKeys,
+                earHolds = ear.holdsWeather,                               // 소리가 1순위: 귀가 비를 켜 둔 동안은 날씨 API가 덮어쓰지 않는다
             )?.let { patch ->
                 val err = BgmController.setSituation(patch)
                 Log.i(TAG, "날씨 → 지휘자 $patch" + if (err.isNotEmpty()) " ($err)" else "")
