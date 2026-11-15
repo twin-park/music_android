@@ -29,6 +29,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.twinpark.music.voice.AppVoice
 
 /**
  * 배경음악을 앱 화면 밖에서도 이어 가는 포그라운드 서비스.
@@ -106,9 +107,9 @@ class BgmService : Service() {
         BgmController.start(applicationContext)
         AppDriving.start(applicationContext)
         if (navi == null && packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)) {
-            navi = PleosNaviSource(applicationContext, onSpeedLimit = com.twinpark.music.car.AppDriving::setSpeedLimit) { scope.launch(Dispatchers.Main) { finish() } }.also { it.start() }
+            navi = PleosNaviSource(applicationContext, onSpeedLimit = AppDriving::setSpeedLimit) { scope.launch(Dispatchers.Main) { finish() } }.also { it.start() }
         }
-        com.twinpark.music.voice.AppVoice.start(applicationContext)          // 음성 명령(VOICE_COMMAND 가 켜진 빌드만)
+        AppVoice.start(applicationContext)          // 음성 명령(VOICE_COMMAND 가 켜진 빌드만)
         if (senseJob == null) senseJob = scope.launch(Dispatchers.Main) {
             while (true) {
                 SituationDirector.observe(AppSensors.all.heardAll())
@@ -157,7 +158,7 @@ class BgmService : Service() {
         AppDriving.stop()
         navi?.close()
         navi = null
-        com.twinpark.music.voice.AppVoice.stop()
+        AppVoice.stop()
         BgmMediaSession.deactivate()
         abandonFocus()
         BgmController.shutdown()

@@ -1,9 +1,11 @@
 package com.twinpark.music.audio
 
 import android.util.Log
+import com.twinpark.music.car.AppDriving
 import com.twinpark.music.domain.Directive
 import com.twinpark.music.domain.SituationRules
 import com.twinpark.music.domain.SituationTracker
+import com.twinpark.music.domain.TalkLevel
 import com.twinpark.music.domain.TrackerState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,7 +58,7 @@ object SituationDirector {
         if (st.ducking != before?.ducking) Log.i(TAG, if (st.ducking) "통화: 음악 낮춤" else "통화 끝: 음악 되돌림")
         BgmController.duck(st.ducking)                                     // 즉시층: 통화는 기다리지 않는다
         if (BgmController.conductorOn) {                                   // 지휘자가 있으면: 들린 단어는 상황 칸으로 넘기고, 분위기 · 악기 · 빠르기는 지휘자가 정한다
-            ear.update(all, nowMs, com.twinpark.music.domain.TalkLevel.current(System.currentTimeMillis()))?.let { patch ->
+            ear.update(all, nowMs, TalkLevel.current(System.currentTimeMillis()))?.let { patch ->
                 val err = BgmController.setSituation(patch)
                 Log.i(TAG, "귀 → 지휘자 $patch" + if (err.isNotEmpty()) " ($err)" else "")
             }
@@ -70,7 +72,7 @@ object SituationDirector {
                 Log.i(TAG, "날씨 → 지휘자 $patch" + if (err.isNotEmpty()) " ($err)" else "")
                 if (err.isNotEmpty()) weather.reset()                      // 엔진이 아직 준비 안 됐으면 다음 번에 다시 보낸다
             }
-            drive.update(com.twinpark.music.car.AppDriving.state, nowMs, ear.userKeys)?.let { patch ->
+            drive.update(AppDriving.state, nowMs, ear.userKeys)?.let { patch ->
                 val err = BgmController.setSituation(patch)
                 Log.i(TAG, "차량 → 지휘자 $patch" + if (err.isNotEmpty()) " ($err)" else "")
                 if (err.isNotEmpty()) drive.reset()

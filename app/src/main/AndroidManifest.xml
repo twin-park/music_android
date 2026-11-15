@@ -22,6 +22,8 @@
     <uses-permission android:name="pleos.car.permission.NAVI_NOTIFY" />
     <!-- 음성 명령(Pleos SpeechToText SDK). VOICE_ENGINE=pleos 인 빌드에서만 실행 중에 요청한다. -->
     <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
+    <!-- 음성 출력(Pleos TextToSpeech SDK). VOICE_OUTPUT=pleos 인 빌드에서만 실행 중에 요청한다. -->
+    <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
 
     <!-- 안드로이드 11 이상에서 기기의 음성 인식 서비스를 찾으려면 필요하다(음성 명령, 안드로이드 기본 인식) -->
     <queries>
