@@ -106,7 +106,7 @@ class BgmService : Service() {
         BgmController.start(applicationContext)
         AppDriving.start(applicationContext)
         if (navi == null && packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)) {
-            navi = PleosNaviSource(applicationContext) { scope.launch(Dispatchers.Main) { finish() } }.also { it.start() }
+            navi = PleosNaviSource(applicationContext, onSpeedLimit = com.twinpark.music.car.AppDriving::setSpeedLimit) { scope.launch(Dispatchers.Main) { finish() } }.also { it.start() }
         }
         if (senseJob == null) senseJob = scope.launch(Dispatchers.Main) {
             while (true) {

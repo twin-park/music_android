@@ -4,6 +4,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.AfterClass
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -33,6 +35,23 @@ class EarModelInstrumentedTest {
             val words = it[4].removePrefix("words").trim()
             it[0].removePrefix("name").trim() to
                 if (words.isEmpty()) emptySet() else words.split(" | ").map { w -> w.substringBefore(':') }.toSet()
+        }
+    }
+
+    /** expected.txt 의 "sounds" 줄 첫 값(말소리 확률)이 말소리 문턱(0.55)을 넘는 시험 소리 */
+    private fun expectedTalk(): Map<String, Boolean> {
+        val lines = testAssets.open("ear/expected.txt").bufferedReader().readLines()
+        return lines.chunked(5).filter { it.size >= 5 }.associate {
+            it[0].removePrefix("name").trim() to (it[1].removePrefix("sounds").trim().split(" ").first().toFloat() >= 0.55f)
+        }
+    }
+
+    @Test fun reportsTalkLevelOnlyForClearSpeech() {
+        for ((name, talking) in expectedTalk()) {
+            val samples = wav16(testAssets.open("ear/$name.wav").use { it.readBytes() })
+            classifier.classify(samples, OnnxSoundClassifier.SAMPLE_RATE)
+            val level = com.twinpark.music.domain.TalkLevel.current(System.currentTimeMillis())
+            if (talking) assertTrue("$name 말소리 크기가 있어야 함", level != null && level >= 0.55f) else assertNull("$name 은 말소리 크기가 없어야 함", level)
         }
     }
 

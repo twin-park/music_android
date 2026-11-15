@@ -7,6 +7,7 @@ import android.content.Context
 import com.carbgm.ear.EarWords
 import com.carbgm.ear.Prosody
 import com.twinpark.music.domain.SoundClassifier
+import com.twinpark.music.domain.TalkLevel
 import org.json.JSONObject
 import java.nio.FloatBuffer
 
@@ -28,6 +29,7 @@ class OnnxSoundClassifier private constructor(
                 val sounds = (out.get(SOUNDS).get().value as Array<FloatArray>)[0]
                 @Suppress("UNCHECKED_CAST")
                 val emotion = (out.get(EMOTION).get().value as Array<FloatArray>)[0]
+                TalkLevel.report(sounds[SPEECH], thresholds[SPEECH], System.currentTimeMillis())
                 return EarWords.toWords(sounds, thresholds, emotion, Prosody.compute(samples)).map { it.word }.toSet()
             }
         }
@@ -40,6 +42,7 @@ class OnnxSoundClassifier private constructor(
     companion object {
         const val SAMPLE_RATE = 16_000
         const val WINDOW_SAMPLES = 64_000
+        private const val SPEECH = 0                   // EarWords.SOUND_IDS 의 첫 번째(speech)
         private const val INPUT = "wav"
         private const val SOUNDS = "sounds"
         private const val EMOTION = "emotion"

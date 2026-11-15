@@ -12,9 +12,13 @@ import com.twinpark.music.domain.WeatherSource
 object AppDriving {
     @Volatile private var speed: DrivingSource = NoDrivingSource
     @Volatile private var gear: DrivingGear? = null
+    @Volatile private var limit: Int? = null
     private var vehicle: PleosVehicleSource? = null
 
-    val state: DrivingState get() = speed.state.value.copy(gear = gear)
+    val state: DrivingState get() = speed.state.value.copy(gear = gear, limitKmh = limit)
+
+    /** 내비가 알려 주는 지금 도로의 제한속도(km/h). 0 이하면 모름. */
+    fun setSpeedLimit(kmh: Int) { limit = kmh.takeIf { it > 0 } }
 
     @Synchronized
     fun start(context: Context) {
@@ -31,6 +35,7 @@ object AppDriving {
         vehicle?.close()
         vehicle = null
         gear = null
+        limit = null
         WeatherSource.setWipersOn(false)
     }
 }

@@ -37,6 +37,22 @@ class EarSituationTest {
     }
 
     @Test
+    fun `말소리 크기는 또렷할 때만 보내고 아니면 지운다`() {
+        val e = EarSituation()
+        assertEquals("""{"cabin":{"sound":"talk","talk":0.9}}""", e.update(setOf("대화"), 0, 0.9f))
+        assertNull(e.update(setOf("대화"), 2_000, 0.9f))
+        assertEquals("""{"cabin":{"talk":0.6}}""", e.update(setOf("대화"), 4_000, 0.6f))
+        assertEquals("""{"cabin":{"sound":"quiet","talk":null}}""", e.update(emptySet(), 6_000, null))
+        assertNull(e.update(emptySet(), 8_000, null))
+    }
+
+    @Test
+    fun `말소리 크기를 안 주면 예전처럼 동작한다`() {
+        val e = EarSituation()
+        assertEquals("""{"cabin":{"sound":"talk"}}""", e.update(setOf("대화"), 0))
+    }
+
+    @Test
     fun `상황 묶음 JSON`() {
         assertEquals("""{"place":{"kind":"coast"}}""", SituationPresets.patch("place.kind", "coast"))
         assertEquals("""{"drive":{"state":"fast","speed":null}}""", SituationPresets.patch("drive.state", "fast"))
