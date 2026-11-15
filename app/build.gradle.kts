@@ -45,8 +45,8 @@ android {
         buildConfigField("boolean", "VOICE_COMMAND", localProp("VOICE_COMMAND", "false"))
         // 음성 인식 구현: android(기본, 안드로이드 기본 인식) 또는 pleos(Pleos STT 온디바이스, 플랫폼에서 열리면)
         buildConfigField("String", "VOICE_ENGINE", "\"${localProp("VOICE_ENGINE", "android")}\"")
-        // 음성 출력 구현: android(기본, 안드로이드 기본 TTS) 또는 pleos(Pleos TextToSpeech 온디바이스)
-        buildConfigField("String", "VOICE_OUTPUT", "\"${localProp("VOICE_OUTPUT", "android")}\"")
+        // 음성 출력 구현: recorded(기본, 미리 만든 음성 파일), android(안드로이드 기본 TTS), pleos(Pleos TextToSpeech, 플랫폼에서 열리면)
+        buildConfigField("String", "VOICE_OUTPUT", "\"${localProp("VOICE_OUTPUT", "recorded")}\"")
         // Pleos Playground My Project 의 Client ID / Secret. 서버 방식 음성 인식(registerApp)에만 쓰고, 온디바이스는 필요 없다. 앱에 넣은 값은 APK에서 꺼낼 수 있다.
         buildConfigField("String", "PLEOS_CLIENT_ID", "\"${localProp("PLEOS_CLIENT_ID")}\"")
         buildConfigField("String", "PLEOS_CLIENT_SECRET", "\"${localProp("PLEOS_CLIENT_SECRET")}\"")
