@@ -15,8 +15,11 @@ interface SpeechOutput : AutoCloseable {
     fun speak(text: String)
 }
 
-/** 쓸 음성 출력 구현. 빌드 설정 `VOICE_OUTPUT`(기본 android)으로 고른다. */
+/** 쓸 음성 출력 구현. 빌드 설정 `VOICE_OUTPUT`(기본 recorded)으로 고른다. */
 enum class OutputEngine(val id: String) {
+    /** 미리 만들어 둔 음성 파일을 재생한다(기본). 엔진 답변이 고정 문장이라 가능하고, 어느 기기에서나 같게 동작한다. */
+    Recorded("recorded"),
+
     /** 안드로이드 기본 TTS. 기기에 TTS 엔진과 한국어 음성이 있어야 한다. */
     Android("android"),
 
@@ -25,11 +28,12 @@ enum class OutputEngine(val id: String) {
     ;
 
     companion object {
-        /** 모르는 이름이면 기본(안드로이드)로. */
-        fun from(id: String?): OutputEngine = entries.firstOrNull { it.id.equals(id?.trim(), ignoreCase = true) } ?: Android
+        /** 모르는 이름이면 기본(미리 만든 음성 파일)로. */
+        fun from(id: String?): OutputEngine = entries.firstOrNull { it.id.equals(id?.trim(), ignoreCase = true) } ?: Recorded
     }
 
     fun create(context: android.content.Context): SpeechOutput = when (this) {
+        Recorded -> RecordedSpeechOutput(context)
         Android -> AndroidSpeechOutput(context)
         Pleos -> PleosSpeechOutput(context)
     }

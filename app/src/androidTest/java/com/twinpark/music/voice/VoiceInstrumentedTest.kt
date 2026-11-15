@@ -47,6 +47,27 @@ class VoiceInstrumentedTest {
     }
 
     @Test
+    fun recordedClipsPlayToTheEndAndReopenTheGate() {
+        val out = RecordedSpeechOutput(context)
+        try {
+            out.start()
+            assertTrue("준비돼야 함", out.isReady)
+            for (reply in ReplyClips.replies) {
+                SoundGate.clear()
+                val t0 = System.currentTimeMillis()
+                out.speak(reply)
+                assertTrue("재생 시작과 함께 소리 분류가 막혀야 함: $reply", SoundGate.isMuted(System.currentTimeMillis()))
+                // 끝까지 재생되면 막는 시간이 4.5초 뒤로 줄어든다(파일은 최대 약 4초).
+                val done = waitFor(8_000) { !SoundGate.isMuted(System.currentTimeMillis() + 5_000) }
+                Log.i("VoiceTest", "재생 끝까지 ${System.currentTimeMillis() - t0}ms: $reply")
+                assertTrue("끝까지 재생돼야 함: $reply", done)
+            }
+        } finally {
+            out.close()
+        }
+    }
+
+    @Test
     fun pleosTtsOpensAndSpeaksThenReopensTheGate() {
         val out = PleosSpeechOutput(context)
         try {
