@@ -3,4 +3,15 @@
 
     <!-- 소리 인식 시험용. 릴리스 빌드에는 마이크 권한이 없다(MIC_SENSING 설정과 함께 켠다). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <application>
+        <!-- 마이크 대신 소리 파일로 음성 명령을 시험하는 통로. DEV_MODE 빌드가 아니면 받아도 아무것도 하지 않는다(DebugVoiceFeed 참고). -->
+        <receiver
+            android:name=".voice.DebugVoiceFeedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.twinpark.music.debug.FEED" />
+            </intent-filter>
+        </receiver>
+    </application>
 </manifest>
