@@ -1,7 +1,6 @@
 package com.twinpark.music.ui.screen
 
 import android.app.Activity
-import android.content.pm.ApplicationInfo
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -191,14 +190,6 @@ fun MusicScreen(modifier: Modifier = Modifier, engine: MusicEngine = BgmControll
                     },
                     modifier = Modifier.fillMaxSize(),
                 )
-                // 시안의 좌상단 브랜드 표기 (시안 글자는 HTUNDAI로 적혀 있으나 오타로 보고 HYUNDAI로 쓴다)
-                Text(
-                    "HYUNDAI",
-                    color = Color.White,
-                    fontSize = ui(16f),
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.TopStart).padding((14 * LocalUiScale.current).dp),
-                )
             }
         }
         val orb: @Composable (Modifier) -> Unit = { m ->
@@ -294,7 +285,7 @@ private fun OrbPanel(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val debuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    val debuggable = com.twinpark.music.BuildConfig.DEV_MODE      // 시연용: 빌드 설정 DEV_MODE (app/build.gradle.kts)
     var devOpen by remember { mutableStateOf(false) }
     // 가로 화면(폰은 높이 360dp 안팎)처럼 낮으면 컴팩트: 오브가 늘 보이도록 날씨 표를 줄이고 버튼을 낮춘다.
     BoxWithConstraints(modifier) {
@@ -318,19 +309,21 @@ private fun OrbPanel(
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                     border = com.twinpark.music.ui.component.Glass.EdgeStroke,
                 ) { Text("END", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
-                OutlinedButton(
-                    onClick = {
-                        // 지휘자가 있으면 "다른 거": 지금 분위기는 10분 빼고 지금 상황에서 다음으로 맞는 분위기로 바로. 없으면 목록 다음.
-                        val list = Mood.EngineMoods
-                        val at = list.indexOfFirst { it.id == engineId }
-                        if (BgmController.conductorOn) BgmController.changeMood { list[(at + 1) % list.size].id }
-                        else onEngineChange(list[(at + 1) % list.size].id)
-                    },
-                    modifier = Modifier.weight(1f).height(btnH).background(com.twinpark.music.ui.component.Glass.Fill, androidx.compose.foundation.shape.CircleShape),
-                    contentPadding = btnPad,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                    border = com.twinpark.music.ui.component.Glass.EdgeStroke,
-                ) { Text("CHANGE THE MOOD", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = ui(if (compact) 14f else 17f)) }
+                if (debuggable) {
+                    OutlinedButton(
+                        onClick = {
+                            // 지휘자가 있으면 "다른 거": 지금 분위기는 10분 빼고 지금 상황에서 다음으로 맞는 분위기로 바로. 없으면 목록 다음.
+                            val list = Mood.EngineMoods
+                            val at = list.indexOfFirst { it.id == engineId }
+                            if (BgmController.conductorOn) BgmController.changeMood { list[(at + 1) % list.size].id }
+                            else onEngineChange(list[(at + 1) % list.size].id)
+                        },
+                        modifier = Modifier.weight(1f).height(btnH).background(com.twinpark.music.ui.component.Glass.Fill, androidx.compose.foundation.shape.CircleShape),
+                        contentPadding = btnPad,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        border = com.twinpark.music.ui.component.Glass.EdgeStroke,
+                    ) { Text("CHANGE THE MOOD", fontSize = ui(if (compact) 13f else 15f), fontFamily = AppFonts.Pretendard, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = ui(if (compact) 14f else 17f)) }
+                }
                 if (debuggable) {
                     TextButton(
                         onClick = { devOpen = !devOpen },

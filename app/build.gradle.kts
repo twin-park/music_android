@@ -9,6 +9,7 @@ plugins {
 val bgmAssetsDir = layout.buildDirectory.dir("generated/bgmAssets")
 
 // 날씨 API 키와 위치는 저장소에 올라가지 않는 android/local.properties에서 읽는다(없으면 비워 둬서 날씨 연동을 끈다).
+//   DEV_MODE=true   (시연용 DEV 패널과 CHANGE THE MOOD 버튼, 기본 꺼짐. 환경변수 DEV_MODE로도 줄 수 있음)
 //   OPENWEATHER_API_KEY=...   (필수 아님)   WEATHER_LAT=37.5665   WEATHER_LON=126.9780   (필수 아님, 기본 서울)
 // 앱에 넣은 키는 APK에서 꺼낼 수 있다. 대회, 시연용이며 정식 배포는 서버를 거쳐야 한다.
 val localProps = Properties().apply {
@@ -16,7 +17,7 @@ val localProps = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 fun localProp(name: String, default: String = ""): String =
-    ((findProperty(name) as String?) ?: localProps.getProperty(name) ?: default).trim()
+    ((findProperty(name) as String?) ?: localProps.getProperty(name) ?: System.getenv(name) ?: default).trim()
 
 android {
     namespace = "com.twinpark.music"
@@ -36,6 +37,8 @@ android {
 
         // 마이크로 소리를 듣는 기능. 기본 꺼짐이고 마이크 권한은 디버그 빌드에만 있다. 켜려면 -PMIC_SENSING=true
         buildConfigField("boolean", "MIC_SENSING", localProp("MIC_SENSING", "false"))
+        // 시연용 DEV 패널과 CHANGE THE MOOD 버튼. 기본 꺼짐. 켜려면 -PDEV_MODE=true, local.properties 또는 환경변수 DEV_MODE=true
+        buildConfigField("boolean", "DEV_MODE", localProp("DEV_MODE", "false"))
         buildConfigField("String", "OPENWEATHER_API_KEY", "\"${localProp("OPENWEATHER_API_KEY")}\"")
         buildConfigField("double", "WEATHER_LAT", localProp("WEATHER_LAT", "37.5665"))      // 위치는 차량 위치 SDK(FusedLocation)가 준비되면 그쪽 값으로 바꾼다
         buildConfigField("double", "WEATHER_LON", localProp("WEATHER_LON", "126.9780"))
