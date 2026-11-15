@@ -36,6 +36,26 @@ object SpeechVocabulary {
         return out.toList()
     }
 
+    /** 명령 앞뒤에 붙어도 되는 흔한 말. 이 말을 뺀 낱말이 명령 문장에 들어 있는지 본다([isCoherent]). */
+    val FILLER: Set<String> = setOf("해", "줘", "틀어", "좀", "걸로", "거", "주세요", "해줘")
+
+    /** 받아들일 수 있는 명령 문장들: 엔진 낱말(뺄 것 제외)과 자연스러운 문장. */
+    fun phrases(words: List<String>, extra: List<String> = NATURAL): List<String> =
+        (words.filterNot { it in EXCLUDED } + extra).distinct()
+
+    /**
+     * 인식된 말이 명령 모양인가. 군더더기([FILLER])를 뺀 낱말이 하나라도 있고, 그것이 모두 [phrases] 중 한 문장 안에 들어 있어야 한다.
+     * 소리를 낱말로 좁히면 보통 말이 낱말 여러 개를 이어 붙인 꼴("해 편안 좋 틀어 줘")로 들리는 일이 있는데, 이런 말은 어느 한 문장에도 맞지 않아 걸러진다.
+     */
+    fun isCoherent(text: String, phrases: List<String>): Boolean {
+        val content = text.split(' ').filter { it.isNotEmpty() && it !in FILLER }
+        if (content.isEmpty()) return false
+        return phrases.any { p ->
+            val tokens = p.split(' ').toSet()
+            content.all { it in tokens }
+        }
+    }
+
     /** Vosk 문법(JSON 배열): 낱말 단독, 앞뒤에 모르는 말이 붙은 꼴, 모르는 말만. 낱말이 없으면 null(제한 없이 인식). */
     fun grammar(words: List<String>, extra: List<String> = NATURAL): String? {
         if (words.isEmpty()) return null

@@ -13,7 +13,10 @@ interface SpeechSource : AutoCloseable {
     /** 준비한다. 서비스가 없거나 실패하면 [isReady]는 false로 남고 앱은 그대로 동작한다. */
     fun start()
 
-    /** 한 문장 듣기를 시작한다. 준비가 안 됐거나 이미 듣는 중이면 false. */
+    /** 버튼 없이 계속 듣는가. true이면 [listen]을 부를 필요가 없다(듣고 있으면 true를 돌려줄 뿐). */
+    val continuous: Boolean get() = false
+
+    /** 한 문장 듣기를 시작한다. 준비가 안 됐거나 이미 듣는 중이면 false. 계속 듣는 구현([continuous])은 듣고 있는지만 알려 준다. */
     fun listen(): Boolean
 }
 
@@ -35,7 +38,7 @@ enum class SpeechEngine(val id: String) {
     }
 
     fun create(context: Context, onText: (String) -> Unit): SpeechSource = when (this) {
-        Vosk -> VoskSpeechSource(context, onText)
+        Vosk -> VoskSpeechSource(context, onText = onText)
         Android -> AndroidSpeechSource(context, onText)
         Pleos -> PleosSpeechSource(context, onText)
     }

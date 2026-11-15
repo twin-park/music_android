@@ -3,10 +3,14 @@ package com.twinpark.music.voice
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import com.twinpark.music.BuildConfig
+import com.twinpark.music.domain.SoundGate
 import com.twinpark.music.sensing.MicTap
 import java.io.File
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import org.json.JSONObject
 import org.vosk.Model
@@ -15,22 +19,29 @@ import org.vosk.Recognizer
 /**
  * 앱 안에서 도는 오프라인 음성 인식(Vosk, 한국어 소형 모델)으로 말을 글자로 받는다. 서비스나 통신이 필요 없다.
  * 모델은 앱 에셋 `vosk-ko/`에서 처음 한 번 앱 저장 공간으로 풀어 쓴다(빌드에 `VOSK_MODEL_DIR`을 준 경우만 들어 있다). 없으면 준비되지 않은 채로 남는다.
- * 소리는 [MicSoundSensor]가 이미 열어 둔 마이크를 [MicTap]으로 받는다(그래서 `MIC_SENSING` 빌드에서만 듣는다).
- * [listen]을 부를 때만 듣는다: 늘 듣게 하면 평소 대화("좋아", "별로야")가 음악 명령으로 오인될 수 있다.
+ *
+ * **계속 듣는다**(호출어 없음): 준비가 끝나면 [MicSoundSensor]가 열어 둔 마이크 소리를 [MicTap]으로 계속 받는다. 마이크는 앱 화면이 보이는 동안만 열려 있으므로 그동안만 듣는다.
+ * 한 문장이 끝날 때마다 명령 모양인지([SpeechVocabulary.isCoherent])와 신뢰도([CommandFilter])로 가려서, 믿을 만한 명령만 [onText]로 넘긴다. 나머지(보통 대화)는 아무 일도 하지 않고 글자도 남기지 않는다.
+ * 앱이 직접 말하는 동안(그리고 그 뒤 잠깐)은 듣지 않는다([SoundGate]). 인식은 마이크 스레드를 막지 않게 따로 돈다.
+ * 마이크 소리를 받으려면 `MIC_SENSING` 빌드여야 한다.
  */
 class VoskSpeechSource(
     private val context: Context,
+    cooldownMs: Long = CommandFilter.DEFAULT_COOLDOWN_MS,
     private val onText: (String) -> Unit,
 ) : SpeechSource {
     private val main = Handler(Looper.getMainLooper())
+    private val filter = CommandFilter(cooldownMs)
+    private val queue = LinkedBlockingQueue<ShortArray>(QUEUE)
     @Volatile private var model: Model? = null
     @Volatile private var ready = false
     @Volatile private var grammar: String? = null
-    @Volatile private var recognizer: Recognizer? = null
-    @Volatile private var listening = false
-    private val timeout = Runnable { finishListening("시간 초과") }
+    @Volatile private var phrases: List<String> = emptyList()
+    @Volatile private var worker: Thread? = null
 
     override val isReady: Boolean get() = ready
+
+    override val continuous: Boolean get() = true
 
     override fun start() {
         if (model != null || ready) return
@@ -43,8 +54,70 @@ class VoskSpeechSource(
             grammar = loadGrammar()
             ready = true
             Log.i(TAG, "음성 인식 준비됨(Vosk 한국어, 오프라인)")
+            attach()
         }
     }
+
+    /** 마이크 소리를 받기 시작한다. 이후 화면이 보이는 동안 계속 듣는다. */
+    @Synchronized
+    private fun attach() {
+        if (!BuildConfig.MIC_SENSING) {
+            Log.w(TAG, "마이크 소리를 받으려면 MIC_SENSING 빌드여야 함")
+            return
+        }
+        if (worker != null) return
+        val m = model ?: return
+        queue.clear()
+        worker = thread(name = "vosk-listen") { listenLoop(m) }
+        MicTap.sink = { samples, count ->
+            val chunk = samples.copyOf(count)                       // 마이크 스레드를 막지 않는다. 밀리면 오래된 것부터 버린다
+            while (!queue.offer(chunk)) queue.poll()
+        }
+        Log.i(TAG, "계속 듣는 중(화면이 보이는 동안)")
+    }
+
+    private fun listenLoop(m: Model) {
+        val rec = newRecognizer(m)
+        var muted = false
+        var lastChunkAt = SystemClock.elapsedRealtime()
+        try {
+            while (!Thread.currentThread().isInterrupted) {
+                val chunk = queue.poll(500, TimeUnit.MILLISECONDS) ?: continue
+                if (SoundGate.isMuted(System.currentTimeMillis())) {   // 앱이 말하는 중: 이 목소리를 명령으로 듣지 않는다
+                    if (!muted) { rec.reset(); muted = true }
+                    continue
+                }
+                muted = false
+                val now = SystemClock.elapsedRealtime()
+                if (now - lastChunkAt > GAP_RESET_MS) rec.reset()       // 마이크가 한동안 멈췄다가 이어지면 이전 소리와 섞지 않는다
+                lastChunkAt = now
+                if (rec.acceptWaveForm(chunk, chunk.size)) onUtterance(rec.result, now)
+            }
+        } catch (_: InterruptedException) {
+        } finally {
+            runCatching { rec.close() }
+        }
+    }
+
+    /** 한 문장이 끝났다. 명령이면 넘기고, 아니면 글자를 남기지 않고 버린다(보통 대화일 수 있다). */
+    private fun onUtterance(json: String, nowMs: Long) {
+        val heard = Heard(textOf(json), confidenceOf(json))
+        if (heard.text.isEmpty()) return
+        if (phrases.isNotEmpty() && !SpeechVocabulary.isCoherent(heard.text, phrases)) {
+            Log.d(TAG, "버림(명령 모양이 아님)")                       // 낱말을 이어 붙인 꼴은 보통 말을 잘못 들은 것이다
+            return
+        }
+        if (!filter.accept(heard, nowMs)) {
+            Log.d(TAG, "버림(신뢰도 ${"%.3f".format(heard.confidence)})")
+            return
+        }
+        val text = SpeechPolicy.accept(heard.text) ?: return
+        Log.i(TAG, "명령 받아들임: \"$text\", 신뢰도 ${"%.3f".format(heard.confidence)}")
+        main.post { onText(text) }
+    }
+
+    /** 계속 듣고 있으면 true. 별도로 시작할 것이 없다(마이크가 닫혀 있을 때는 소리가 오지 않을 뿐이다). */
+    override fun listen(): Boolean = ready && worker != null && MicTap.sink != null
 
     /** 엔진이 알아듣는 낱말로 좁힌 인식 문법. 낱말 파일을 못 읽으면 null(제한 없이 인식). */
     private fun loadGrammar(): String? {
@@ -52,6 +125,7 @@ class VoskSpeechSource(
             ?: return null
         val words = SpeechVocabulary.words(json)
         Log.i(TAG, "알아들을 낱말 ${words.size}개로 인식 범위를 좁힘")
+        phrases = SpeechVocabulary.phrases(words)
         return SpeechVocabulary.grammar(words)
     }
 
@@ -88,43 +162,6 @@ class VoskSpeechSource(
         }
     }
 
-    override fun listen(): Boolean {
-        val m = model ?: return false
-        if (!ready || listening) return false
-        if (!BuildConfig.MIC_SENSING) {
-            Log.w(TAG, "마이크 소리를 받으려면 MIC_SENSING 빌드여야 함")
-            return false
-        }
-        listening = true
-        val rec = newRecognizer(m)
-        recognizer = rec
-        MicTap.sink = { samples, count ->
-            if (listening && runCatching { rec.acceptWaveForm(samples, count) }.getOrDefault(false)) {
-                val json = rec.result                            // 한 문장이 끝났다
-                val heard = Heard(textOf(json), confidenceOf(json))
-                main.post { finishListening("인식 끝", heard) }
-            }
-        }
-        main.postDelayed(timeout, LISTEN_MS)
-        Log.i(TAG, "듣는 중")
-        return true
-    }
-
-    /** 듣기를 끝낸다. 믿을 만하게 들었으면 글자를 넘기고, 아니면 빈 글자를 넘긴다(앱이 "잘 못 알아들었어요"라고 답하게). [heard]가 없으면 지금까지 들은 것을 마무리해서 쓴다. */
-    private fun finishListening(why: String, heard: Heard? = null) {
-        if (!listening) return
-        listening = false
-        main.removeCallbacks(timeout)
-        MicTap.sink = null
-        val rec = recognizer
-        recognizer = null
-        val got = heard ?: rec?.let { r -> runCatching { r.finalResult }.getOrNull()?.let { Heard(textOf(it), confidenceOf(it)) } } ?: Heard("", 0.0)
-        runCatching { rec?.close() }
-        val ok = accepts(got)
-        Log.i(TAG, "듣기 종료: $why, 들은 말 \"${got.text}\", 신뢰도 ${"%.3f".format(got.confidence)}, ${if (ok) "받아들임" else "버림"}")
-        onText(if (ok) SpeechPolicy.accept(got.text).orEmpty() else "")
-    }
-
     /** 글자와 그 신뢰도 */
     data class Heard(val text: String, val confidence: Double)
 
@@ -144,18 +181,7 @@ class VoskSpeechSource(
     }
 
     /** 이미 녹음된 소리([samples], 16kHz 모노)를 한 번에 글자로 바꾼다(시험용). 준비가 안 됐으면 null. */
-    fun recognize(samples: ShortArray): String? {
-        val m = model ?: return null
-        newRecognizer(m).use { rec ->
-            var off = 0
-            while (off < samples.size) {
-                val n = minOf(CHUNK, samples.size - off)
-                rec.acceptWaveForm(samples.copyOfRange(off, off + n), n)
-                off += n
-            }
-            return textOf(rec.finalResult)
-        }
-    }
+    fun recognize(samples: ShortArray): String? = recognizeDetailed(samples)?.text
 
     private fun newRecognizer(m: Model): Recognizer =
         (grammar?.let { Recognizer(m, SAMPLE_RATE, it) } ?: Recognizer(m, SAMPLE_RATE)).also { it.setWords(true) }
@@ -169,13 +195,15 @@ class VoskSpeechSource(
 
     private fun textOf(json: String): String = SpeechVocabulary.clean(runCatching { JSONObject(json).optString("text") }.getOrDefault(""))
 
+    @Synchronized
     override fun close() {
         ready = false
-        listening = false
-        main.removeCallbacks(timeout)
         MicTap.sink = null
-        runCatching { recognizer?.close() }
-        recognizer = null
+        val w = worker
+        worker = null
+        w?.interrupt()
+        runCatching { w?.join(1_000) }                              // 인식기를 쓰는 스레드가 끝난 뒤에 모델을 닫는다
+        queue.clear()
         runCatching { model?.close() }
         model = null
     }
@@ -195,6 +223,7 @@ class VoskSpeechSource(
         private const val DONE_MARK = ".unpacked"
         private const val SAMPLE_RATE = 16_000f
         private const val CHUNK = 4_000
-        private const val LISTEN_MS = 8_000L                 // 이만큼 지나도 끝나지 않으면 그만 듣는다
+        private const val QUEUE = 200                    // 0.1초 조각 200개(20초). 이보다 밀리면 오래된 것부터 버린다
+        private const val GAP_RESET_MS = 1_500L          // 소리가 이만큼 끊기면 이어 붙이지 않는다
     }
 }

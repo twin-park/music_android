@@ -465,11 +465,15 @@ private fun DevControls(
         val reply by AppVoice.reply.collectAsState()
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("음성:", color = Color.White.copy(alpha = 0.7f), fontSize = ui(12f))
-            Button(
-                onClick = { AppVoice.listen() },
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0x33FFFFFF), contentColor = Color.White),
-            ) { Text("말하기", fontSize = ui(12f), maxLines = 1) }
+            if (AppVoice.alwaysListening) {
+                Text("항상 듣는 중", color = Color.White.copy(alpha = 0.85f), fontSize = ui(12f), maxLines = 1)
+            } else {
+                Button(
+                    onClick = { AppVoice.listen() },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0x33FFFFFF), contentColor = Color.White),
+                ) { Text("말하기", fontSize = ui(12f), maxLines = 1) }
+            }
             Text(
                 text = if (heard.isEmpty()) "" else "\"$heard\"" + if (reply.isEmpty()) "" else " → $reply",
                 color = Color.White.copy(alpha = 0.85f), fontSize = ui(12f), maxLines = 2,
