@@ -566,7 +566,7 @@ private object DevSituation {
     fun applyPreset(i: Int) {
         val p = com.twinpark.music.domain.SituationPresets.PRESETS[i]
         BgmController.resetSituation()
-        SituationDirector.ear.clear()
+        SituationDirector.clearSituation()
         picked.clear()
         for ((k, v) in p.values) { picked[k] = v.toString(); SituationDirector.ear.userKeys += k }
         preset = i
@@ -584,7 +584,7 @@ private object DevSituation {
 
     fun reset() {
         BgmController.resetSituation()
-        SituationDirector.ear.clear()
+        SituationDirector.clearSituation()
         picked.clear(); preset = -1; error = ""
         WeatherSource.setManual(null)
     }

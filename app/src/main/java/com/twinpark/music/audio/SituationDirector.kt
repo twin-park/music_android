@@ -28,6 +28,16 @@ object SituationDirector {
     /** 귀 단어 → 지휘자 상황 칸 (지휘자가 있을 때). 사람이 DEV 에서 고른 칸은 [EarSituation.userKeys] 로 비켜 간다. */
     val ear = com.twinpark.music.domain.EarSituation()
 
+    /** 날씨 API · 와이퍼 → 지휘자 날씨 칸. 귀가 들은 비 · 천둥과 같은 칸이다. */
+    private val weather = com.twinpark.music.domain.WeatherSituation()
+
+    /** 사람이 상황을 모두 지웠다: 귀와 날씨가 보낸 값도 잊어서 다음 번에 다시 보낸다. */
+    @Synchronized
+    fun clearSituation() {
+        ear.clear()
+        weather.reset()
+    }
+
     /** 직접 분위기를 고른 뒤 이 시간 동안은 자동 전환을 보류한다. */
     private const val MANUAL_HOLD_MS = 60_000L
 
@@ -45,6 +55,16 @@ object SituationDirector {
             ear.update(all, nowMs)?.let { patch ->
                 val err = BgmController.setSituation(patch)
                 Log.i(TAG, "귀 → 지휘자 $patch" + if (err.isNotEmpty()) " ($err)" else "")
+            }
+            weather.update(
+                com.twinpark.music.domain.WeatherSource.report.value,
+                com.twinpark.music.domain.WeatherSource.wipersOn.value,
+                System.currentTimeMillis(),
+                ear.userKeys,
+            )?.let { patch ->
+                val err = BgmController.setSituation(patch)
+                Log.i(TAG, "날씨 → 지휘자 $patch" + if (err.isNotEmpty()) " ($err)" else "")
+                if (err.isNotEmpty()) weather.reset()                      // 엔진이 아직 준비 안 됐으면 다음 번에 다시 보낸다
             }
             return
         }
