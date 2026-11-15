@@ -12,6 +12,11 @@ import com.twinpark.music.sensing.MicSoundSensor
 import com.twinpark.music.weather.PleosLocationSource
 import com.twinpark.music.ui.screen.MusicScreen
 import com.twinpark.music.ui.theme.MusicTheme
+import com.twinpark.music.voice.AppVoice
+import com.twinpark.music.voice.OutputEngine
+import com.twinpark.music.voice.PleosSpeechOutput
+import com.twinpark.music.voice.PleosSpeechSource
+import com.twinpark.music.voice.SpeechEngine
 
 class MainActivity : ComponentActivity() {
     override fun onStart() {
@@ -43,10 +48,13 @@ class MainActivity : ComponentActivity() {
             add(PleosLocationSource.PERMISSION)
             add(CarPropertySource.SPEED_PERMISSION)
             val voice = BuildConfig.VOICE_COMMAND
-            val pleosVoice = voice && com.twinpark.music.voice.AppVoice.engine == com.twinpark.music.voice.SpeechEngine.Pleos
+            val pleosVoice = voice && AppVoice.engine == SpeechEngine.Pleos
             // 안드로이드 기본 음성 인식도 마이크 권한을 쓴다. Pleos STT는 차량 권한이 따로 필요하다.
             if (BuildConfig.MIC_SENSING || (voice && !pleosVoice)) add(Manifest.permission.RECORD_AUDIO)
-            if (pleosVoice) add(com.twinpark.music.voice.PleosSpeechSource.PERMISSION)
+            if (pleosVoice) add(PleosSpeechSource.PERMISSION)
+            if (voice && OutputEngine.from(BuildConfig.VOICE_OUTPUT) == OutputEngine.Pleos) {
+                add(PleosSpeechOutput.PERMISSION)
+            }
         }
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
             if (granted[Manifest.permission.RECORD_AUDIO] == true) MicSoundSensor.start(this)

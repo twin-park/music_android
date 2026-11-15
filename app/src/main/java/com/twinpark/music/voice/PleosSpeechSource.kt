@@ -66,9 +66,9 @@ class PleosSpeechSource(
             .getOrNull() ?: return
         stt = client
         runCatching {
-            client.addListener(listener)
             client.initialize(object : OnInitializeListener {
                 override fun onSuccess() {
+                    runCatching { client.addListener(listener) }.onFailure { Log.w(TAG, "리스너 등록 실패: ${it.message}") }       // 서비스가 만들어진 뒤에만 등록할 수 있다
                     runCatching { client.setLocale(Locale.KOREAN) }.onFailure { Log.w(TAG, "언어 설정 실패: ${it.message}") }
                     ready = true
                     Log.i(TAG, "음성 인식 준비됨(온디바이스)")

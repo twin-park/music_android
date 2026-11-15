@@ -15,6 +15,26 @@ interface SpeechOutput : AutoCloseable {
     fun speak(text: String)
 }
 
+/** 쓸 음성 출력 구현. 빌드 설정 `VOICE_OUTPUT`(기본 android)으로 고른다. */
+enum class OutputEngine(val id: String) {
+    /** 안드로이드 기본 TTS. 기기에 TTS 엔진과 한국어 음성이 있어야 한다. */
+    Android("android"),
+
+    /** Pleos TextToSpeech SDK(온디바이스). 차량 CAAS 서비스가 읽는다. */
+    Pleos("pleos"),
+    ;
+
+    companion object {
+        /** 모르는 이름이면 기본(안드로이드)로. */
+        fun from(id: String?): OutputEngine = entries.firstOrNull { it.id.equals(id?.trim(), ignoreCase = true) } ?: Android
+    }
+
+    fun create(context: android.content.Context): SpeechOutput = when (this) {
+        Android -> AndroidSpeechOutput(context)
+        Pleos -> PleosSpeechOutput(context)
+    }
+}
+
 /** 아무것도 읽지 않는 출력(기능이 꺼졌을 때). */
 object NoSpeechOutput : SpeechOutput {
     override val isReady: Boolean = false

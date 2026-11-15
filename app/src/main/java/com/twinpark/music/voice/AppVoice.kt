@@ -38,7 +38,7 @@ object AppVoice {
         if (!enabled || source != null) return
         Log.i(TAG, "음성 인식 구현: ${engine.id}")
         source = engine.create(context.applicationContext, ::onHeard).also { it.start() }
-        output = AndroidSpeechOutput(context.applicationContext).also { it.start() }
+        output = OutputEngine.from(BuildConfig.VOICE_OUTPUT).create(context.applicationContext).also { it.start() }
     }
 
     /** 한 문장 듣기. 기능이 꺼져 있거나 준비가 안 됐으면 false. */
